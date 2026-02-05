@@ -437,17 +437,36 @@ export const calculateTechData = (jsonData, techCol, capacityCol, setTechData) =
   setTechData(techArray);
 };
 
+// Extended color palette for dynamic/unknown redevelopment types
+const REDEV_COLOR_PALETTE = [
+  { colorClass: 'teal', gradient: 'linear-gradient(135deg, #14b8a6, #0d9488)', border: '#0d9488' },
+  { colorClass: 'orange', gradient: 'linear-gradient(135deg, #f97316, #ea580c)', border: '#ea580c' },
+  { colorClass: 'pink', gradient: 'linear-gradient(135deg, #ec4899, #db2777)', border: '#db2777' },
+  { colorClass: 'indigo', gradient: 'linear-gradient(135deg, #6366f1, #4f46e5)', border: '#4f46e5' },
+  { colorClass: 'cyan', gradient: 'linear-gradient(135deg, #06b6d4, #0891b2)', border: '#0891b2' },
+  { colorClass: 'amber', gradient: 'linear-gradient(135deg, #f59e0b, #d97706)', border: '#d97706', textColor: '#111827' },
+];
+
+// Known redevelopment types with their color configurations
+const KNOWN_REDEV_COLORS = {
+  'BESS': { colorClass: 'green', gradient: 'linear-gradient(135deg, #16a34a, #064e3b)', border: '#059669' },
+  'Gas/Thermal': { colorClass: 'red', gradient: 'linear-gradient(135deg, #ef4444, #7f1d1d)', border: '#dc2626' },
+  'Solar': { colorClass: 'yellow', gradient: 'linear-gradient(135deg, #facc15, #a16207)', border: '#d97706', textColor: '#111827' },
+  'Powered Land': { colorClass: 'blue', gradient: 'linear-gradient(135deg, #0ea5e9, #0369a1)', border: '#0284c7' },
+  'Plant Optimization': { colorClass: 'purple', gradient: 'linear-gradient(135deg, #8b5cf6, #7c3aed)', border: '#7c3aed' },
+};
+
 export const calculateRedevelopmentTypes = (jsonData, redevBaseCaseCol, setRedevelopmentTypes) => {
   const redevCounts = {};
-  
+
   jsonData.forEach(row => {
     const redevStr = row[redevBaseCaseCol] || "";
     if (redevStr && redevStr.toString().trim() !== "") {
       const types = redevStr.toString().split(/[\n\/]/).map(t => t.trim()).filter(t => t);
-      
+
       types.forEach(type => {
         let cleanType = type.trim();
-        
+
         if (cleanType.toLowerCase().includes("bess")) {
           cleanType = "BESS";
         } else if (cleanType.toLowerCase().includes("gas") || cleanType.toLowerCase().includes("thermal")) {
@@ -459,7 +478,8 @@ export const calculateRedevelopmentTypes = (jsonData, redevBaseCaseCol, setRedev
         } else if (cleanType.toLowerCase().includes("plant") || cleanType.toLowerCase().includes("optimization")) {
           cleanType = "Plant Optimization";
         }
-        
+        // Unknown types keep their original name (cleanType)
+
         if (cleanType) {
           redevCounts[cleanType] = (redevCounts[cleanType] || 0) + 1;
         }
@@ -467,32 +487,32 @@ export const calculateRedevelopmentTypes = (jsonData, redevBaseCaseCol, setRedev
     }
   });
 
+  // Track which fallback colors have been assigned to unknown types
+  let fallbackColorIndex = 0;
+  const unknownTypeColors = {};
+
   const redevArray = Object.keys(redevCounts).map(type => {
-    let colorClass = "gray";
-    let inlineStyle = {};
-    
-    if (type === "BESS") {
-      colorClass = "green";
-    } else if (type === "Gas/Thermal") {
-      colorClass = "red";
-    } else if (type === "Solar") {
-      colorClass = "yellow";
-    } else if (type === "Powered Land") {
-      colorClass = "blue";
-    } else if (type === "Plant Optimization") {
-      colorClass = "purple";
-      inlineStyle = {
-        background: "linear-gradient(135deg, #8b5cf6, #7c3aed)",
-        color: "white",
-        border: "1px solid #7c3aed"
-      };
+    let colorConfig;
+
+    // Check if it's a known type
+    if (KNOWN_REDEV_COLORS[type]) {
+      colorConfig = KNOWN_REDEV_COLORS[type];
+    } else {
+      // Assign a fallback color for unknown types
+      if (!unknownTypeColors[type]) {
+        unknownTypeColors[type] = REDEV_COLOR_PALETTE[fallbackColorIndex % REDEV_COLOR_PALETTE.length];
+        fallbackColorIndex++;
+      }
+      colorConfig = unknownTypeColors[type];
     }
-    
+
     return {
       label: type,
       value: redevCounts[type],
-      className: `kpi-chip ${colorClass}`,
-      style: inlineStyle
+      className: `kpi-chip ${colorConfig.colorClass}`,
+      style: colorConfig.textColor ? { color: colorConfig.textColor } : {},
+      gradient: colorConfig.gradient,
+      border: colorConfig.border
     };
   }).sort((a, b) => b.value - a.value);
 

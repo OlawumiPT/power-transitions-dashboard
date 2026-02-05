@@ -1082,7 +1082,8 @@ html, body, #root {
   padding: 4px;
   margin-top: 8px;
   flex: 1;
-  overflow: visible;
+  overflow-y: auto;
+  max-height: 300px;
   min-height: unset;
   height: auto;
   align-content: start;
@@ -1142,6 +1143,50 @@ html, body, #root {
   background: linear-gradient(135deg, #8b5cf6, #7c3aed);
   color: white;
   border: 1px solid #7c3aed;
+  min-height: 80px;
+  max-height: 80px;
+}
+
+/* Fallback colors for dynamic/unknown redevelopment types */
+.kpi-chip.teal {
+  background: linear-gradient(135deg, #14b8a6, #0d9488);
+  border: 1px solid #0d9488;
+  min-height: 80px;
+  max-height: 80px;
+}
+
+.kpi-chip.orange {
+  background: linear-gradient(135deg, #f97316, #ea580c);
+  border: 1px solid #ea580c;
+  min-height: 80px;
+  max-height: 80px;
+}
+
+.kpi-chip.pink {
+  background: linear-gradient(135deg, #ec4899, #db2777);
+  border: 1px solid #db2777;
+  min-height: 80px;
+  max-height: 80px;
+}
+
+.kpi-chip.indigo {
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  border: 1px solid #4f46e5;
+  min-height: 80px;
+  max-height: 80px;
+}
+
+.kpi-chip.cyan {
+  background: linear-gradient(135deg, #06b6d4, #0891b2);
+  border: 1px solid #0891b2;
+  min-height: 80px;
+  max-height: 80px;
+}
+
+.kpi-chip.amber {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: #111827;
+  border: 1px solid #d97706;
   min-height: 80px;
   max-height: 80px;
 }
