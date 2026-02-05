@@ -1008,6 +1008,15 @@ const handleUpdateProject = async (updatedData) => {
       await checkAndAddToSupportOptions(redevSupport.trim());
     }
     
+    // Helper to get value, treating empty string as intentional clear (returns null)
+    // This prevents || from falling back to old values when user clears a field
+    const getFieldValue = (primary, fallback = null) => {
+      if (primary === "") return null; // Empty string = user cleared the field
+      if (primary !== undefined && primary !== null) return primary;
+      if (fallback === "") return null;
+      return fallback ?? null;
+    };
+
     // Transform form data to match EXACT database schema
     const backendData = {
       // Basic Information (from database schema)
@@ -1018,15 +1027,15 @@ const handleUpdateProject = async (updatedData) => {
       site_acreage: updatedData["Site Acreage"] || updatedData.site_acreage || null,
       status: updatedData["Status"] || updatedData.status || null,
       ma_tier: updatedData["M&A Tier"] || updatedData.ma_tier || null,
-      
-      // Technical Details
-      legacy_nameplate_capacity_mw: updatedData["Legacy Nameplate Capacity (MW)"] || updatedData.mw || null,
+
+      // Technical Details - use getFieldValue for numeric fields that can be cleared
+      legacy_nameplate_capacity_mw: getFieldValue(updatedData["Legacy Nameplate Capacity (MW)"], updatedData.mw),
       tech: updatedData["Tech"] || updatedData.tech || null,
-      heat_rate_btu_kwh: updatedData["Heat Rate (Btu/kWh)"] || updatedData.hr || null,
-      capacity_factor_2024: updatedData["2024 Capacity Factor"] || updatedData.cf || null,
-      legacy_cod: updatedData["Legacy COD"] || updatedData.cod || null,
+      heat_rate_btu_kwh: getFieldValue(updatedData["Heat Rate (Btu/kWh)"], updatedData.hr),
+      capacity_factor_2024: getFieldValue(updatedData["2024 Capacity Factor"], updatedData.cf),
+      legacy_cod: getFieldValue(updatedData["Legacy COD"], updatedData.cod),
       fuel: updatedData["Fuel"] || updatedData.fuel || null,
-      poi_voltage_kv: updatedData["POI Voltage (KV)"] || updatedData.poi_voltage_kv || null,
+      poi_voltage_kv: getFieldValue(updatedData["POI Voltage (KV)"], updatedData.poi_voltage_kv),
 
       // Market Details
       iso: updatedData["ISO"] || updatedData.mkt || null,
@@ -1036,14 +1045,14 @@ const handleUpdateProject = async (updatedData) => {
       gas_reference: updatedData["Gas Reference"] || updatedData.gas_reference || null,
       transactability: updatedData["Transactability"] || updatedData.transactability || null,
       
-      // Redevelopment Details
+      // Redevelopment Details - use getFieldValue for numeric fields that can be cleared
       redev_tier: updatedData["Redev Tier"] || updatedData.redev_tier || null,
       redevelopment_base_case: updatedData["Redevelopment Base Case"] || updatedData.redev_base_case || null,
-      redev_capacity_mw: updatedData["Redev Capacity (MW)"] || updatedData.redev_capacity || null,
+      redev_capacity_mw: getFieldValue(updatedData["Redev Capacity (MW)"], updatedData.redev_capacity),
       redev_tech: updatedData["Redev Tech"] || updatedData.redev_tech || null,
       redev_fuel: updatedData["Redev Fuel"] || updatedData.redev_fuel || null,
-      redev_heatrate_btu_kwh: updatedData["Redev Heatrate (Btu/kWh)"] || updatedData.redev_heatrate || null,
-      redev_cod: updatedData["Redev COD"] || updatedData.redev_cod || null,
+      redev_heatrate_btu_kwh: getFieldValue(updatedData["Redev Heatrate (Btu/kWh)"], updatedData.redev_heatrate),
+      redev_cod: getFieldValue(updatedData["Redev COD"], updatedData.redev_cod),
       redev_land_control: updatedData["Redev Land Control"] || updatedData.redev_land_control || null,
       redev_stage_gate: updatedData["Redev Stage Gate"] || updatedData.redev_stage_gate || null,
       redev_lead: updatedData["Redev Lead"] || updatedData.redev_lead || null,
