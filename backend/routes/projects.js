@@ -1,6 +1,32 @@
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
 const projectController = require('../controllers/projectController');
+
+// Configure multer for file upload (memory storage for Excel processing)
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    // Accept Excel and CSV files
+    const allowedMimes = [
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.ms-excel',
+      'text/csv',
+      'application/csv'
+    ];
+    const allowedExts = ['.xlsx', '.xls', '.csv'];
+    const ext = file.originalname.toLowerCase().slice(file.originalname.lastIndexOf('.'));
+
+    if (allowedMimes.includes(file.mimetype) || allowedExts.includes(ext)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Please upload an Excel (.xlsx, .xls) or CSV file.'));
+    }
+  }
+});
 
 // ========== ROUTE DEFINITIONS ==========
 
@@ -24,6 +50,13 @@ router.get('/stats', projectController.getDashboardStats);
  * @access  Public (for now)
  */
 router.get('/filters', projectController.getFilterOptions);
+
+/**
+ * @route   POST /api/projects/import
+ * @desc    Import projects from Excel with upsert capability
+ * @access  Public (for now - add auth later)
+ */
+router.post('/import', upload.single('file'), projectController.importProjects);
 
 /**
  * @route   GET /api/projects/:id

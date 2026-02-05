@@ -3,9 +3,11 @@ import { useDropzone } from 'react-dropzone';
 import * as XLSX from 'xlsx';
 import './UploadModal.css';
 
-const UploadModal = ({ 
-  showUploadModal, 
-  setShowUploadModal, 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+
+const UploadModal = ({
+  showUploadModal,
+  setShowUploadModal,
   allData,
   setAllData,
   calculateAllData,
@@ -15,15 +17,17 @@ const UploadModal = ({
   setTechData,
   setRedevelopmentTypes,
   setCounterparties,
-  setPipelineRows
+  setPipelineRows,
+  refreshData // Optional callback to refresh data from database
 }) => {
-  const [uploadStep, setUploadStep] = useState('select'); // 'select', 'preview'
+  const [uploadStep, setUploadStep] = useState('select'); // 'select', 'preview', 'result'
   const [uploadedFile, setUploadedFile] = useState(null);
   const [uploadedData, setUploadedData] = useState([]);
   const [uploadedHeaders, setUploadedHeaders] = useState([]);
   const [importOption, setImportOption] = useState('replace');
   const [uploadError, setUploadError] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [importResult, setImportResult] = useState(null);
   
   const onDrop = useCallback((acceptedFiles) => {
     const file = acceptedFiles[0];
@@ -74,42 +78,89 @@ const UploadModal = ({
     maxFiles: 1
   });
   
+  // Handle database import via API
+  const handleDatabaseImport = async () => {
+    if (!uploadedFile) {
+      setUploadError('No file to import.');
+      return;
+    }
+
+    setUploading(true);
+    setUploadError('');
+
+    try {
+      const formData = new FormData();
+      formData.append('file', uploadedFile);
+
+      const response = await fetch(`${API_BASE_URL}/projects/import`, {
+        method: 'POST',
+        body: formData
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || result.error || 'Import failed');
+      }
+
+      setImportResult(result);
+      setUploadStep('result');
+
+      // Refresh data from database if callback provided
+      if (refreshData) {
+        await refreshData();
+      }
+
+    } catch (error) {
+      console.error('Error during database import:', error);
+      setUploadError(`Import failed: ${error.message}`);
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleImport = () => {
     if (uploadedData.length === 0) {
       setUploadError('No data to import.');
       return;
     }
-    
+
+    // If database option selected, use the API
+    if (importOption === 'database') {
+      handleDatabaseImport();
+      return;
+    }
+
     setUploading(true);
-    
+
     try {
       let finalData = [];
-      
+
       switch(importOption) {
         case 'replace':
           // Replace all data with uploaded data
           finalData = uploadedData;
           break;
-          
+
         case 'append':
           // Append uploaded data to existing data
           finalData = [...allData, ...uploadedData];
           break;
-          
+
         case 'update':
           // Update existing projects, add new ones
           const existingMap = new Map();
-          
+
           // Create a map of existing projects by name/codename
           allData.forEach(row => {
             const key = row['Project Name'] || row['Project Codename'] || '';
             if (key) existingMap.set(key.toLowerCase().trim(), row);
           });
-          
+
           // Process uploaded data
           uploadedData.forEach(newRow => {
             const key = (newRow['Project Name'] || newRow['Project Codename'] || '').toLowerCase().trim();
-            
+
             if (key && existingMap.has(key)) {
               // Update existing project (merge data)
               existingMap.set(key, { ...existingMap.get(key), ...newRow });
@@ -118,15 +169,15 @@ const UploadModal = ({
               finalData.push(newRow);
             }
           });
-          
+
           // Add all existing projects (including updated ones)
           finalData = [...Array.from(existingMap.values()), ...finalData];
           break;
       }
-      
+
       // Update the main data state
       setAllData(finalData);
-      
+
       // Recalculate all metrics
       const headers = Object.keys(finalData[0] || {});
       calculateAllData(finalData, headers, {
@@ -138,14 +189,14 @@ const UploadModal = ({
         setCounterparties,
         setPipelineRows
       });
-      
-      alert(`✅ Successfully imported ${uploadedData.length} project(s)!`);
+
+      alert(`Successfully imported ${uploadedData.length} project(s)!`);
       setShowUploadModal(false);
       resetUpload();
-      
+
     } catch (error) {
       console.error('Error during import:', error);
-      setUploadError(`❌ Import failed: ${error.message}`);
+      setUploadError(`Import failed: ${error.message}`);
     } finally {
       setUploading(false);
     }
@@ -157,6 +208,7 @@ const UploadModal = ({
     setUploadedData([]);
     setUploadedHeaders([]);
     setUploadError('');
+    setImportResult(null);
   };
   
   const closeModal = () => {
@@ -251,8 +303,20 @@ const UploadModal = ({
               </div>
               
               <div className="import-options">
-                <h4>⚙️ Import Options</h4>
+                <h4>Import Options</h4>
                 <div className="options-grid">
+                  <label className="option-radio database-option">
+                    <input
+                      type="radio"
+                      name="importOption"
+                      value="database"
+                      checked={importOption === 'database'}
+                      onChange={(e) => setImportOption(e.target.value)}
+                    />
+                    <span>Save to Database (Recommended)</span>
+                    <small>Upsert to database: insert new, update existing. Scores calculated automatically.</small>
+                  </label>
+
                   <label className="option-radio">
                     <input
                       type="radio"
@@ -261,10 +325,10 @@ const UploadModal = ({
                       checked={importOption === 'replace'}
                       onChange={(e) => setImportOption(e.target.value)}
                     />
-                    <span>🔄 Replace all data</span>
+                    <span>Replace all data (Local only)</span>
                     <small>Replace current projects with uploaded file</small>
                   </label>
-                  
+
                   <label className="option-radio">
                     <input
                       type="radio"
@@ -273,10 +337,10 @@ const UploadModal = ({
                       checked={importOption === 'append'}
                       onChange={(e) => setImportOption(e.target.value)}
                     />
-                    <span>➕ Append to existing</span>
+                    <span>Append to existing (Local only)</span>
                     <small>Add new projects, keep existing ones</small>
                   </label>
-                  
+
                   <label className="option-radio">
                     <input
                       type="radio"
@@ -285,7 +349,7 @@ const UploadModal = ({
                       checked={importOption === 'update'}
                       onChange={(e) => setImportOption(e.target.value)}
                     />
-                    <span>🔄 Update existing</span>
+                    <span>Update existing (Local only)</span>
                     <small>Update matching projects, add new ones</small>
                   </label>
                 </div>
@@ -293,6 +357,71 @@ const UploadModal = ({
             </div>
           )}
           
+          {uploadStep === 'result' && importResult && (
+            <div className="upload-step">
+              <div className="import-result">
+                <div className="result-header success">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                  <h3>Import Complete</h3>
+                </div>
+
+                <div className="result-summary">
+                  <div className="summary-item">
+                    <span className="label">Total Rows</span>
+                    <span className="value">{importResult.summary?.total_rows || 0}</span>
+                  </div>
+                  <div className="summary-item inserted">
+                    <span className="label">Inserted</span>
+                    <span className="value">{importResult.summary?.inserted || 0}</span>
+                  </div>
+                  <div className="summary-item updated">
+                    <span className="label">Updated</span>
+                    <span className="value">{importResult.summary?.updated || 0}</span>
+                  </div>
+                  <div className="summary-item skipped">
+                    <span className="label">Skipped</span>
+                    <span className="value">{importResult.summary?.skipped || 0}</span>
+                  </div>
+                  {importResult.summary?.errors > 0 && (
+                    <div className="summary-item errors">
+                      <span className="label">Errors</span>
+                      <span className="value">{importResult.summary?.errors || 0}</span>
+                    </div>
+                  )}
+                </div>
+
+                {importResult.details?.projects?.length > 0 && (
+                  <div className="result-details">
+                    <h4>Processed Projects (first 20)</h4>
+                    <div className="projects-list">
+                      {importResult.details.projects.map((p, idx) => (
+                        <div key={idx} className={`project-item ${p.action}`}>
+                          <span className="project-name">{p.project_name}</span>
+                          <span className={`action-badge ${p.action}`}>
+                            {p.action === 'inserted' ? 'NEW' : 'UPDATED'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {importResult.details?.import_errors?.length > 0 && (
+                  <div className="result-errors">
+                    <h4>Errors</h4>
+                    {importResult.details.import_errors.map((err, idx) => (
+                      <div key={idx} className="error-item">
+                        Row {err.row}: {err.project_name} - {err.error}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {uploadError && (
             <div className="error-message">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
@@ -316,22 +445,34 @@ const UploadModal = ({
           {uploadStep === 'preview' && (
             <>
               <button className="btn-secondary" onClick={() => setUploadStep('select')}>
-                ← Back
+                Back
               </button>
               <div style={{flex: 1}}></div>
-              <button 
-                className="btn-secondary" 
+              <button
+                className="btn-secondary"
                 onClick={resetUpload}
                 disabled={uploading}
               >
                 Upload New
               </button>
-              <button 
-                className="btn-primary" 
+              <button
+                className="btn-primary"
                 onClick={handleImport}
                 disabled={uploading}
               >
-                {uploading ? '⏳ Importing...' : '✅ Import Data'}
+                {uploading ? 'Importing...' : (importOption === 'database' ? 'Save to Database' : 'Import Data')}
+              </button>
+            </>
+          )}
+
+          {uploadStep === 'result' && (
+            <>
+              <button className="btn-secondary" onClick={resetUpload}>
+                Import Another File
+              </button>
+              <div style={{flex: 1}}></div>
+              <button className="btn-primary" onClick={closeModal}>
+                Done
               </button>
             </>
           )}

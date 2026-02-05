@@ -1,4 +1,6 @@
 const projectModel = require('../models/projectModel');
+const { transformExcelData } = require('../utils/importUtils');
+const XLSX = require('xlsx');
 
 // ========== CONTROLLER FUNCTIONS ==========
 
@@ -306,6 +308,138 @@ const patchProject = async (req, res) => {
   await updateProject(req, res);
 };
 
+/**
+ * POST /api/projects/import - Import projects from Excel with upsert
+ *
+ * Expects multipart form data with Excel file
+ * Calculates scores server-side and upserts to database
+ */
+const importProjects = async (req, res) => {
+  try {
+    console.log('📥 POST /api/projects/import - Import request received');
+
+    // Check if file was uploaded
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        error: 'No file uploaded',
+        message: 'Please upload an Excel file (.xlsx, .xls) or CSV file'
+      });
+    }
+
+    const file = req.file;
+    console.log(`📄 Processing file: ${file.originalname} (${file.size} bytes)`);
+
+    // Read Excel file from buffer
+    let workbook;
+    try {
+      workbook = XLSX.read(file.buffer, { type: 'buffer' });
+    } catch (xlsxError) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid file format',
+        message: `Could not read Excel file: ${xlsxError.message}`
+      });
+    }
+
+    // Get first sheet
+    const sheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+
+    // Convert to JSON
+    let excelData = XLSX.utils.sheet_to_json(worksheet, {
+      defval: null,
+      raw: true
+    });
+
+    // Trim column names (handle Excel trailing spaces)
+    excelData = excelData.map(row => {
+      const cleanRow = {};
+      Object.keys(row).forEach(key => {
+        cleanRow[key.trim()] = row[key];
+      });
+      return cleanRow;
+    });
+
+    console.log(`📊 Found ${excelData.length} rows in Excel file`);
+
+    if (excelData.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Empty file',
+        message: 'The Excel file contains no data rows'
+      });
+    }
+
+    // Transform Excel data to database format with calculated scores
+    console.log('🔄 Transforming data and calculating scores...');
+    const transformed = transformExcelData(excelData);
+
+    console.log(`   Valid rows: ${transformed.valid.length}`);
+    console.log(`   Invalid rows: ${transformed.invalid.length}`);
+    console.log(`   Errors: ${transformed.errors.length}`);
+
+    if (transformed.valid.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'No valid data',
+        message: 'No valid projects found in the file',
+        details: {
+          invalid: transformed.invalid,
+          errors: transformed.errors
+        }
+      });
+    }
+
+    // Get user from auth (or default to 'import')
+    const updatedBy = req.user?.username || req.body?.updatedBy || 'import';
+
+    // Perform bulk upsert
+    console.log(`📤 Upserting ${transformed.valid.length} projects to database...`);
+    const upsertResult = await projectModel.bulkUpsertProjects(
+      transformed.valid,
+      updatedBy
+    );
+
+    console.log('✅ Import complete:');
+    console.log(`   Inserted: ${upsertResult.inserted}`);
+    console.log(`   Updated: ${upsertResult.updated}`);
+    console.log(`   Errors: ${upsertResult.errors.length}`);
+
+    // Build response
+    const response = {
+      success: true,
+      message: `Successfully imported ${upsertResult.inserted + upsertResult.updated} projects`,
+      summary: {
+        total_rows: excelData.length,
+        valid_rows: transformed.valid.length,
+        inserted: upsertResult.inserted,
+        updated: upsertResult.updated,
+        skipped: transformed.invalid.length,
+        errors: upsertResult.errors.length + transformed.errors.length
+      },
+      details: {
+        projects: upsertResult.projects.slice(0, 20), // First 20 for reference
+        skipped_rows: transformed.invalid.slice(0, 10),
+        import_errors: upsertResult.errors.slice(0, 10),
+        transform_errors: transformed.errors.slice(0, 10)
+      },
+      timestamp: new Date().toISOString()
+    };
+
+    res.status(200).json(response);
+
+  } catch (error) {
+    console.error('❌ Error in importProjects controller:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Import failed',
+      message: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+};
+
 // Export all controller functions
 module.exports = {
   getProjects,
@@ -315,5 +449,6 @@ module.exports = {
   deleteProject,
   patchProject,
   getDashboardStats,
-  getFilterOptions
+  getFilterOptions,
+  importProjects
 };

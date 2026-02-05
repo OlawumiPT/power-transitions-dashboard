@@ -148,6 +148,22 @@ async function correctImport() {
           return num != null ? Math.round(num) : null;
         };
         
+        // Calculate market score from ISO (matches frontend SCORE_MAPPINGS.market)
+        const calculateMarketScore = (iso) => {
+          if (!iso) return '1';
+          const isoStr = String(iso).trim();
+          const premiumMarkets = ['PJM', 'NYISO', 'ISO-NE', 'ISONE'];
+          const goodMarkets = ['MISO North', 'SERC'];
+          const neutralMarkets = ['SPP', 'MISO South'];
+          const poorMarkets = ['ERCOT', 'WECC', 'CAISO'];
+
+          if (premiumMarkets.includes(isoStr)) return '3';
+          if (goodMarkets.includes(isoStr)) return '2';
+          if (neutralMarkets.includes(isoStr)) return '1';
+          if (poorMarkets.includes(isoStr)) return '0';
+          return '1'; // Default
+        };
+
         // Calculate status
         const calculateStatus = (legacyCOD, redevCOD) => {
           const currentYear = new Date().getFullYear();
@@ -217,7 +233,7 @@ async function correctImport() {
           toString(row['Plant  COD']),
           
           toString(row['Capacity Factor']),
-          toString(row['Markets']),
+          calculateMarketScore(row['ISO']),  // Calculated from ISO, not raw Excel value
           toString(row['Thermal Optimization']),
           toString(row['Envionmental Score']) || extractNumericValue(row['Envionmental Score']),
           toString(row['Market Score']) || extractNumericValue(row['Market Score']),

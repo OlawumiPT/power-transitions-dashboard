@@ -673,10 +673,195 @@ const getFilterOptions = async () => {
   }
 };
 
+/**
+ * Upsert a single project (INSERT or UPDATE based on project_name)
+ * Uses PostgreSQL INSERT ... ON CONFLICT
+ *
+ * @param {Object} projectData - Project data object with column values
+ * @param {string} updatedBy - User performing the update (default: 'import')
+ * @returns {Object} - { action: 'inserted'|'updated', data: projectRow }
+ */
+const upsertProject = async (projectData, updatedBy = 'import') => {
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    const schema = process.env.DB_SCHEMA || 'pipeline_dashboard';
+
+    // Handle ma_tier to ma_tier_id mapping
+    const handleMaTier = (maTierValue) => {
+      if (!maTierValue) return null;
+      const normalizedValue = maTierValue.toString().toLowerCase().trim();
+      const maTierMap = {
+        'owned': 1,
+        'exclusivity': 2,
+        'second round': 3,
+        'first round': 4,
+        'pipeline': 5,
+        'passed': 6
+      };
+      return maTierMap[normalizedValue] || null;
+    };
+
+    // Build column lists and values
+    const columns = [];
+    const placeholders = [];
+    const updateClauses = [];
+    const values = [];
+    let paramCount = 1;
+
+    // Define which columns to process
+    const validColumns = [
+      'project_name', 'project_codename', 'plant_owner', 'contact', 'project_type',
+      'iso', 'zone_submarket', 'location', 'legacy_nameplate_capacity_mw',
+      'tech', 'fuel', 'heat_rate_btu_kwh', 'legacy_cod', 'capacity_factor_2024',
+      'site_acreage', 'number_of_sites', 'process_type', 'transactability_scores',
+      'gas_reference', 'redevelopment_base_case', 'redev_tier', 'redev_capacity_mw',
+      'redev_tech', 'redev_fuel', 'redev_heatrate_btu_kwh', 'redev_cod',
+      'redev_land_control', 'redev_stage_gate', 'redev_lead', 'redev_support',
+      'co_locate_repower', 'thermal_optimization', 'environmental_score',
+      'market_score', 'infra', 'ix', 'ma_tier', 'poi_voltage_kv',
+      // Calculated scores
+      'plant_cod', 'capacity_factor', 'markets', 'fuel_score', 'capacity_size',
+      'thermal_score', 'redev_score', 'overall_score', 'status',
+      // Legacy columns from original import
+      'overall_project_score', 'thermal_operating_score', 'redevelopment_score',
+      'transactability'
+    ];
+
+    // Skip these columns (auto-managed or computed)
+    const skipColumns = ['id', 'created_at', 'updated_at', 'created_by', 'updated_by',
+                         'is_active', 'mw', 'hr', 'cf', 'mkt', 'zone', 'excel_row_id'];
+
+    for (const [key, value] of Object.entries(projectData)) {
+      const columnName = key.toLowerCase().replace(/[^a-z0-9_]/g, '_');
+
+      if (skipColumns.includes(columnName)) continue;
+      if (!validColumns.includes(columnName) && key !== 'ma_tier') continue;
+
+      if (key === 'ma_tier' || columnName === 'ma_tier') {
+        // Handle ma_tier specially
+        const maTierId = handleMaTier(value);
+        if (maTierId !== null) {
+          columns.push('ma_tier_id');
+          placeholders.push(`$${paramCount}`);
+          updateClauses.push(`ma_tier_id = $${paramCount}`);
+          values.push(maTierId);
+          paramCount++;
+        }
+        columns.push('ma_tier');
+        placeholders.push(`$${paramCount}`);
+        updateClauses.push(`ma_tier = $${paramCount}`);
+        values.push(value === '' || value === null ? null : value);
+        paramCount++;
+      } else {
+        columns.push(columnName);
+        placeholders.push(`$${paramCount}`);
+        // Don't update project_name on conflict
+        if (columnName !== 'project_name') {
+          updateClauses.push(`${columnName} = $${paramCount}`);
+        }
+        values.push(value === '' || value === null || value === undefined ? null : value);
+        paramCount++;
+      }
+    }
+
+    // Add metadata columns
+    columns.push('updated_at', 'updated_by', 'is_active');
+    placeholders.push('NOW()', `$${paramCount}`, 'true');
+    updateClauses.push('updated_at = NOW()', `updated_by = $${paramCount}`);
+    values.push(updatedBy);
+    paramCount++;
+
+    // Add created_at and created_by for INSERT only
+    columns.push('created_at', 'created_by');
+    placeholders.push('NOW()', `$${paramCount}`);
+    values.push(updatedBy);
+
+    const query = `
+      INSERT INTO ${schema}.projects (${columns.join(', ')})
+      VALUES (${placeholders.join(', ')})
+      ON CONFLICT (project_name)
+      DO UPDATE SET ${updateClauses.join(', ')}
+      RETURNING *, (xmax = 0) as was_inserted
+    `;
+
+    const result = await client.query(query, values);
+    await client.query('COMMIT');
+
+    const row = result.rows[0];
+    const wasInserted = row.was_inserted;
+    delete row.was_inserted;
+
+    return {
+      action: wasInserted ? 'inserted' : 'updated',
+      data: row
+    };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('❌ Error in upsertProject:', error);
+    throw new Error(`Failed to upsert project: ${error.message}`);
+  } finally {
+    client.release();
+  }
+};
+
+/**
+ * Bulk upsert multiple projects in a transaction
+ *
+ * @param {Array} projects - Array of project data objects
+ * @param {string} updatedBy - User performing the update
+ * @returns {Object} - { inserted: count, updated: count, errors: [], projects: [] }
+ */
+const bulkUpsertProjects = async (projects, updatedBy = 'import') => {
+  const results = {
+    inserted: 0,
+    updated: 0,
+    errors: [],
+    projects: []
+  };
+
+  for (let i = 0; i < projects.length; i++) {
+    const project = projects[i];
+    const projectName = project.project_name || project['Project Name'] || `Row ${i + 1}`;
+
+    try {
+      const result = await upsertProject(project, updatedBy);
+
+      if (result.action === 'inserted') {
+        results.inserted++;
+      } else {
+        results.updated++;
+      }
+
+      results.projects.push({
+        project_name: result.data.project_name,
+        action: result.action,
+        id: result.data.id
+      });
+
+    } catch (error) {
+      results.errors.push({
+        row: i + 1,
+        project_name: projectName,
+        error: error.message
+      });
+    }
+
+    // Log progress every 10 records
+    if ((i + 1) % 10 === 0) {
+      console.log(`   Processed ${i + 1}/${projects.length} projects...`);
+    }
+  }
+
+  return results;
+};
+
 const getProjectsCount = async (filters = {}) => {
   try {
     const schema = process.env.DB_SCHEMA || 'pipeline_dashboard';
-    
+
     let query = `SELECT COUNT(*) as total FROM ${schema}.projects WHERE is_active = true`;
     
     const values = [];
@@ -718,6 +903,8 @@ module.exports = {
   getDashboardStats,
   getFilterOptions,
   getProjectsCount,
-  
+  upsertProject,
+  bulkUpsertProjects,
+
   testConnection: database.testConnection.bind(database)
 };
