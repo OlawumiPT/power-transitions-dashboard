@@ -293,9 +293,9 @@ class ExpertAnalysis {
           confidence = $10,
 
           -- Edit tracking
-          expert_edited_by = $11,
+          expert_edited_by = $11::text,
           expert_edited_at = NOW(),
-          updated_by = $11,
+          updated_by = $11::text,
           updated_at = NOW()
         WHERE id = $12
         RETURNING *
