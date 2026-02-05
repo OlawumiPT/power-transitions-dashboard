@@ -222,11 +222,12 @@ const PipelineTable = ({
       if (sortConfig.column === 'maTier') {
         const maTierOrder = {
           'owned': 0,
-          'exclusivity': 1,
-          'second round': 2,
-          'first round': 3,
-          'pipeline': 4,
-          'passed': 5
+          'signed': 1,
+          'exclusivity': 2,
+          'second round': 3,
+          'first round': 4,
+          'pipeline': 5,
+          'passed': 6
         };
         
         const getMaTierValue = (tier) => {
@@ -326,7 +327,8 @@ const PipelineTable = ({
     // Define colors for each M&A tier
     const tierColors = {
       'owned': '#8b5cf6', // purple
-      'exclusivity': '#10b981', // green
+      'signed': '#22c55e', // green (brighter)
+      'exclusivity': '#10b981', // green (teal)
       'second round': '#3b82f6', // blue
       'first round': '#f59e0b', // amber
       'pipeline': '#6b7280', // gray

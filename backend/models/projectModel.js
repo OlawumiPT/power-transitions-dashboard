@@ -245,7 +245,7 @@ const createProject = async (projectData) => {
 
       const maTierMap = {
         'owned': 1,
-        'signed': 8,
+        'signed': 7,
         'exclusivity': 2,
         'second round': 3,
         'first round': 4,
@@ -483,7 +483,7 @@ const updateProject = async (id, updates) => {
 
       const maTierMap = {
         'owned': 1,
-        'signed': 8,
+        'signed': 7,
         'exclusivity': 2,
         'second round': 3,
         'first round': 4,
@@ -971,7 +971,7 @@ const upsertProject = async (projectData, updatedBy = 'import') => {
       const normalizedValue = maTierValue.toString().toLowerCase().trim();
       const maTierMap = {
         'owned': 1,
-        'signed': 8,
+        'signed': 7,
         'exclusivity': 2,
         'second round': 3,
         'first round': 4,

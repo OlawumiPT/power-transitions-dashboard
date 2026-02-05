@@ -104,7 +104,7 @@ const COLUMN_DESCRIPTIONS = {
   'Market Score': '0-3 (for redev calculation)',
   'Infra': '0-3',
   'IX': '0-3',
-  'M&A Tier': 'Owned, Exclusivity, second round, first round, pipeline, passed',
+  'M&A Tier': 'Owned, Signed, Exclusivity, second round, first round, pipeline, passed',
   'POI Voltage (kV)': 'Interconnection voltage'
 };
 

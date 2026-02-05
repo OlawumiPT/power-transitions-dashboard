@@ -696,11 +696,12 @@ function DashboardContent() {
       if (sortConfig.column === 'maTier') {
         const maTierOrder = {
           'owned': 0,
-          'exclusivity': 1,
-          'second round': 2,
-          'first round': 3,
-          'pipeline': 4,
-          'passed': 5
+          'signed': 1,
+          'exclusivity': 2,
+          'second round': 3,
+          'first round': 4,
+          'pipeline': 5,
+          'passed': 6
         };
         
         const getMaTierValue = (tier) => {
@@ -1600,7 +1601,7 @@ const handleUpdateProject = async (updatedData) => {
     const isoSet = new Set();
     const processSet = new Set();
     const fuelSet = new Set();
-    const maTierSet = new Set(["Owned", "Exclusivity", "second round", "first round", "pipeline", "passed"]);
+    const maTierSet = new Set(["Owned", "Signed", "Exclusivity", "second round", "first round", "pipeline", "passed"]);
     const redevTechSet = new Set(["ST", "GT", "CCGT", "Hydro", "Wind", "Solar", "BESS", "Other"]);
     const redevFuelSet = new Set(["Gas", "Coal", "Oil", "Nuclear", "Biomass", "Diesel", "N/A"]);
     const redevTierSet = new Set(["0", "1", "2", "3"]);
@@ -1640,13 +1641,14 @@ const handleUpdateProject = async (updatedData) => {
       projectTypeOptions: [{ type_name: "Redev" }, { type_name: "M&A" }, { type_name: "Owned" }],
       redevFuelOptions: Array.from(redevFuelSet).map(fuel => ({ fuel_name: fuel })),
       redevelopmentBaseOptions: Array.from(redevelopmentBaseSet).map(base => ({ base_case_name: base })),
-      maTierOptions: Array.from(maTierSet).map(tier => ({ 
-        value: tier, 
-        color: tier === 'Owned' ? '#8b5cf6' : 
-               tier === 'Exclusivity' ? '#10b981' : 
-               tier === 'second round' ? '#3b82f6' : 
-               tier === 'first round' ? '#f59e0b' : 
-               tier === 'pipeline' ? '#6b7280' : 
+      maTierOptions: Array.from(maTierSet).map(tier => ({
+        value: tier,
+        color: tier === 'Owned' ? '#8b5cf6' :
+               tier === 'Signed' ? '#22c55e' :
+               tier === 'Exclusivity' ? '#10b981' :
+               tier === 'second round' ? '#3b82f6' :
+               tier === 'first round' ? '#f59e0b' :
+               tier === 'pipeline' ? '#6b7280' :
                '#ef4444'
       })),
       redevLeadOptions: [],
