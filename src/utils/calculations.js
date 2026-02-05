@@ -176,7 +176,9 @@ export const calculateKPIs = (jsonData, columns, setKpiRow1, setKpiRow2) => {
   let totalCalculatedThermal = 0;
   let totalCalculatedRedev = 0;
   let totalCalculatedOverall = 0;
-  let calculatedCount = 0;
+  let thermalCount = 0;
+  let redevCount = 0;
+  let overallCount = 0;
 
   jsonData.forEach(row => {
     // Use canonical score calculation function
@@ -185,16 +187,24 @@ export const calculateKPIs = (jsonData, columns, setKpiRow1, setKpiRow2) => {
     const redevScore = scores.redevelopment_score;
     const overallScore = scores.overall_score;
 
-    if (!isNaN(thermalScore)) totalCalculatedThermal += thermalScore;
-    if (!isNaN(redevScore)) totalCalculatedRedev += redevScore;
-    if (!isNaN(overallScore)) totalCalculatedOverall += overallScore;
-
-    if (thermalScore || redevScore || overallScore) calculatedCount++;
+    // Only count projects with valid (non-null) scores for each average
+    if (thermalScore !== null && !isNaN(thermalScore)) {
+      totalCalculatedThermal += thermalScore;
+      thermalCount++;
+    }
+    if (redevScore !== null && !isNaN(redevScore)) {
+      totalCalculatedRedev += redevScore;
+      redevCount++;
+    }
+    if (overallScore !== null && !isNaN(overallScore)) {
+      totalCalculatedOverall += overallScore;
+      overallCount++;
+    }
   });
 
-  const avgCalculatedThermal = calculatedCount > 0 ? totalCalculatedThermal / calculatedCount : 0;
-  const avgCalculatedRedev = calculatedCount > 0 ? totalCalculatedRedev / calculatedCount : 0;
-  const avgCalculatedOverall = calculatedCount > 0 ? totalCalculatedOverall / calculatedCount : 0;
+  const avgCalculatedThermal = thermalCount > 0 ? totalCalculatedThermal / thermalCount : 0;
+  const avgCalculatedRedev = redevCount > 0 ? totalCalculatedRedev / redevCount : 0;
+  const avgCalculatedOverall = overallCount > 0 ? totalCalculatedOverall / overallCount : 0;
 
   let totalCapacityMW = 0;
   let capacityCount = 0;
@@ -512,19 +522,25 @@ export const calculateCounterpartyData = (jsonData, ownerCol, overallCol, capaci
           ownerGroups[owner] = {
             count: 0,
             totalCapacity: 0,
-            totalOverall: 0
+            totalOverall: 0,
+            overallCount: 0  // Track projects with valid overall scores
           };
         }
         ownerGroups[owner].count++;
         ownerGroups[owner].totalCapacity += capacity;
-        ownerGroups[owner].totalOverall += overall;
+        // Only add to overall total if it's a valid number (not null/NaN)
+        if (overall !== null && !isNaN(overall)) {
+          ownerGroups[owner].totalOverall += overall;
+          ownerGroups[owner].overallCount++;
+        }
       }
     }
   });
 
   const counterpartyArray = Object.keys(ownerGroups).map(owner => {
     const group = ownerGroups[owner];
-    const avgScore = group.count > 0 ? (group.totalOverall / group.count).toFixed(2) : "0.00";
+    // Use overallCount (projects with valid scores) for average, not total count
+    const avgScore = group.overallCount > 0 ? (group.totalOverall / group.overallCount).toFixed(2) : "N/A";
     const capacityGW = (group.totalCapacity / 1000).toFixed(1);
     
     return {
