@@ -64,6 +64,9 @@ function DashboardContent() {
     type: 'success'
   });
 
+  // Validation errors state for form modals
+  const [validationErrors, setValidationErrors] = useState({});
+
   const [allOwners, setAllOwners] = useState([]);
   const [allVoltages, setAllVoltages] = useState(["All"]);
   const [allData, setAllData] = useState([]);
@@ -956,6 +959,23 @@ function DashboardContent() {
     }, 3000);
   };
 
+  // Helper function to parse validation errors from backend
+  const parseValidationErrors = (errorText) => {
+    try {
+      const errorJson = JSON.parse(errorText);
+      if (errorJson.validation_errors && Array.isArray(errorJson.validation_errors)) {
+        const errors = {};
+        errorJson.validation_errors.forEach(err => {
+          errors[err.field] = err.message;
+        });
+        return errors;
+      }
+    } catch (e) {
+      // Not JSON or no validation_errors
+    }
+    return null;
+  };
+
 const handleUpdateProject = async (updatedData) => {
   console.log('🔄 handleUpdateProject called with:', updatedData);
   
@@ -1091,14 +1111,22 @@ const handleUpdateProject = async (updatedData) => {
     if (!response.ok) {
       const errorText = await response.text();
       console.error('❌ Server error response:', errorText);
-      
-      // Show error notification
+
+      // Check for validation errors
+      const fieldErrors = parseValidationErrors(errorText);
+      if (fieldErrors) {
+        setValidationErrors(fieldErrors);
+        // Don't throw - just return to keep modal open with errors displayed
+        return;
+      }
+
+      // Show error notification for non-validation errors
       setNotification({
         show: true,
         message: `Failed to update project: ${response.statusText}`,
         type: 'error'
       });
-      
+
       try {
         const errorJson = JSON.parse(errorText);
         throw new Error(`Failed to update project: ${errorJson.message || response.statusText}`);
@@ -1106,7 +1134,7 @@ const handleUpdateProject = async (updatedData) => {
         throw new Error(`Failed to update project: ${response.status} ${response.statusText}\n${errorText.substring(0, 200)}`);
       }
     }
-    
+
     const updatedProject = await response.json();
     console.log('✅ Update response:', updatedProject);
     
@@ -1144,6 +1172,7 @@ const handleUpdateProject = async (updatedData) => {
   const closeEditModal = () => {
     setShowEditModal(false);
     setEditingProject(null);
+    setValidationErrors({});
   };
 
   // Sorting functions
@@ -1384,6 +1413,7 @@ const handleUpdateProject = async (updatedData) => {
       transactability: "",
       poi_voltage_kv: ""
     });
+    setValidationErrors({});
   };
 
   const handleInputChange = (field, value) => {
@@ -1493,9 +1523,18 @@ const handleUpdateProject = async (updatedData) => {
       if (!response.ok) {
         const errorText = await response.text();
         console.error('❌ Server error response:', errorText);
+
+        // Check for validation errors
+        const fieldErrors = parseValidationErrors(errorText);
+        if (fieldErrors) {
+          setValidationErrors(fieldErrors);
+          // Don't throw - just return to keep modal open with errors displayed
+          return;
+        }
+
         throw new Error(`Failed to add project: ${response.status} ${response.statusText}\nDetails: ${errorText}`);
       }
-      
+
       const newProject = await response.json();
       console.log('✅ New project created:', newProject);
 
@@ -2373,6 +2412,8 @@ const handleUpdateProject = async (updatedData) => {
             US_CITIES={US_CITIES}
             allVoltages={Array.isArray(allVoltages) ? allVoltages.filter(v => v !== "All") : []}
             calculateStatusFromCODs={calculateStatusFromCODs}
+            validationErrors={validationErrors}
+            setValidationErrors={setValidationErrors}
           />
         )}
         
@@ -2388,6 +2429,8 @@ const handleUpdateProject = async (updatedData) => {
             dropdownOptions={dropdownOptions}
             US_CITIES={US_CITIES}
             calculateStatusFromCODs={calculateStatusFromCODs}
+            validationErrors={validationErrors}
+            setValidationErrors={setValidationErrors}
           />
         )}
         

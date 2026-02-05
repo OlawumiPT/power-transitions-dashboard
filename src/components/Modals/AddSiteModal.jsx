@@ -11,7 +11,9 @@ const AddSiteModal = ({
   dropdownOptions, // ALL FROM DATABASE TABLES
   US_CITIES,
   allVoltages,
-  calculateStatusFromCODs
+  calculateStatusFromCODs,
+  validationErrors = {},
+  setValidationErrors
 }) => {
   // ALL DROPDOWN OPTIONS FROM DATABASE TABLES
   const {
@@ -134,6 +136,43 @@ const AddSiteModal = ({
     "POI Voltage (KV)": "poi_voltage_kv"
   };
 
+  // Field error display helper component
+  const FieldError = ({ field }) => {
+    const error = validationErrors[field];
+    if (!error) return null;
+    return (
+      <span style={{
+        display: 'block',
+        color: '#ef4444',
+        fontSize: '12px',
+        marginTop: '4px',
+        fontWeight: '500'
+      }}>
+        {error}
+      </span>
+    );
+  };
+
+  // Helper to get input class with error state
+  const getInputClass = (field) => {
+    return validationErrors[field] ? 'form-input input-error' : 'form-input';
+  };
+
+  const getSelectClass = (field) => {
+    return validationErrors[field] ? 'form-select input-error' : 'form-select';
+  };
+
+  // Clear specific field error when user makes changes
+  const clearFieldError = (field) => {
+    if (setValidationErrors && validationErrors[field]) {
+      setValidationErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[field];
+        return newErrors;
+      });
+    }
+  };
+
   // Initialize form
   useEffect(() => {
     if (showAddSiteModal) {
@@ -202,10 +241,13 @@ const AddSiteModal = ({
   // Handle field changes
   const handleFieldChange = (field, value) => {
     console.log(`Changing ${field} to:`, value);
-    
+
     // Map the field name to database column name
     const dbFieldName = fieldNameMapping[field] || field;
-    
+
+    // Clear validation error for this field
+    clearFieldError(dbFieldName);
+
     // Call the parent handler with the correct field name
     handleInputChange(dbFieldName, value);
   };
@@ -373,13 +415,12 @@ const AddSiteModal = ({
   // Form validation and submission
   const handleFormSubmit = (e) => {
     e.preventDefault();
-    
-    // Required fields - use database field names
-    if (!newSiteData["project_name"] || newSiteData["project_name"].trim() === "") {
-      alert("Please enter a Project Name");
-      return;
+
+    // Clear any previous validation errors
+    if (setValidationErrors) {
+      setValidationErrors({});
     }
-    
+
     // Log for debugging
     console.log("Submitting new project:", {
       project_name: newSiteData["project_name"],
@@ -392,12 +433,12 @@ const AddSiteModal = ({
       redevelopment_base_case: newSiteData["redevelopment_base_case"],
       allData: newSiteData
     });
-    
+
     // Log each field individually for debugging
     Object.entries(newSiteData).forEach(([key, value]) => {
       console.log(`${key}:`, value, `(type: ${typeof value})`);
     });
-    
+
     handleAddSiteSubmit(e);
   };
 
@@ -469,13 +510,14 @@ const AddSiteModal = ({
                   <label className="form-label required">Project Name</label>
                   <input
                     type="text"
-                    className="form-input"
+                    className={getInputClass("project_name")}
                     value={newSiteData["project_name"] || newSiteData["Project Name"] || ""}
                     onChange={(e) => handleFieldChange("Project Name", e.target.value)}
                     placeholder="Enter project name"
                     required
                     style={{ width: '100%' }}
                   />
+                  <FieldError field="project_name" />
                 </div>
                 
                 <div className="form-group">
@@ -575,7 +617,7 @@ const AddSiteModal = ({
                 <div className="form-group">
                   <label className="form-label">M&A Tier</label>
                   <select
-                    className="form-select"
+                    className={getSelectClass("ma_tier")}
                     value={newSiteData["ma_tier"] || newSiteData["M&A Tier"] || ""}
                     onChange={(e) => handleMaTierChange(e.target.value)}
                     style={{ width: '100%' }}
@@ -603,12 +645,13 @@ const AddSiteModal = ({
                       </>
                     )}
                   </select>
+                  <FieldError field="ma_tier" />
                 </div>
                 
                 <div className="form-group">
                   <label className="form-label">Status</label>
                   <select
-                    className="form-select"
+                    className={getSelectClass("status")}
                     value={selectedStatus}
                     onChange={(e) => handleStatusChange(e.target.value)}
                     style={{ width: '100%' }}
@@ -618,6 +661,7 @@ const AddSiteModal = ({
                       <option key={status} value={status}>{status}</option>
                     ))}
                   </select>
+                  <FieldError field="status" />
                 </div>
               </div>
             </div>
@@ -630,7 +674,7 @@ const AddSiteModal = ({
                   <label className="form-label">Capacity (MW)</label>
                   <input
                     type="number"
-                    className="form-input"
+                    className={getInputClass("legacy_nameplate_capacity_mw")}
                     value={newSiteData["legacy_nameplate_capacity_mw"] || newSiteData["Legacy Nameplate Capacity (MW)"] || ""}
                     onChange={(e) => handleFieldChange("Legacy Nameplate Capacity (MW)", e.target.value)}
                     placeholder="Enter capacity in MW"
@@ -638,6 +682,7 @@ const AddSiteModal = ({
                     min="0"
                     style={{ width: '100%' }}
                   />
+                  <FieldError field="legacy_nameplate_capacity_mw" />
                 </div>
 
                 {/* Portfolio Checkbox */}
@@ -661,7 +706,7 @@ const AddSiteModal = ({
                   <label className="form-label">POI Voltage (KV)</label>
                   <input
                     type="number"
-                    className="form-input"
+                    className={getInputClass("poi_voltage_kv")}
                     value={newSiteData["poi_voltage_kv"] || newSiteData["POI Voltage (KV)"] || ""}
                     onChange={(e) => handlePoiVoltageChange(e.target.value)}
                     placeholder="Enter POI voltage in KV"
@@ -669,6 +714,7 @@ const AddSiteModal = ({
                     min="0"
                     style={{ width: '100%' }}
                   />
+                  <FieldError field="poi_voltage_kv" />
                 </div>
                 
                 <div className="form-group">
@@ -690,7 +736,7 @@ const AddSiteModal = ({
                   <label className="form-label">Heat Rate (Btu/kWh)</label>
                   <input
                     type="number"
-                    className="form-input"
+                    className={getInputClass("heat_rate_btu_kwh")}
                     value={newSiteData["heat_rate_btu_kwh"] || newSiteData["Heat Rate (Btu/kWh)"] || ""}
                     onChange={(e) => handleFieldChange("Heat Rate (Btu/kWh)", e.target.value)}
                     placeholder="Enter heat rate"
@@ -698,13 +744,14 @@ const AddSiteModal = ({
                     min="0"
                     style={{ width: '100%' }}
                   />
+                  <FieldError field="heat_rate_btu_kwh" />
                 </div>
-                
+
                 <div className="form-group">
                   <label className="form-label">Capacity Factor (%)</label>
                   <input
                     type="number"
-                    className="form-input"
+                    className={getInputClass("capacity_factor_2024")}
                     value={newSiteData["capacity_factor_2024"] || newSiteData["2024 Capacity Factor"] || ""}
                     onChange={(e) => handleFieldChange("2024 Capacity Factor", e.target.value)}
                     placeholder="Enter capacity factor"
@@ -713,19 +760,21 @@ const AddSiteModal = ({
                     max="100"
                     style={{ width: '100%' }}
                   />
+                  <FieldError field="capacity_factor_2024" />
                 </div>
                 
                 <div className="form-group">
                   <label className="form-label">Legacy COD</label>
                   <input
                     type="text"
-                    className="form-input"
+                    className={getInputClass("legacy_cod")}
                     value={newSiteData["legacy_cod"] || newSiteData["Legacy COD"] || ""}
                     onChange={(e) => handleLegacyCODChange(e.target.value)}
                     placeholder="YYYY"
                     maxLength="4"
                     style={{ width: '100%' }}
                   />
+                  <FieldError field="legacy_cod" />
                   <small className="form-hint">Used for status calculation if no Redev COD</small>
                 </div>
                 

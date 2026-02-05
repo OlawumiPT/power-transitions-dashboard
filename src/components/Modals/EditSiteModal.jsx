@@ -8,13 +8,15 @@ const EditSiteModal = ({
   projectData,
   allData,
   dropdownOptions,
-  calculateStatusFromCODs
+  calculateStatusFromCODs,
+  validationErrors = {},
+  setValidationErrors
 }) => {
   const [formData, setFormData] = useState({});
   const [locationInput, setLocationInput] = useState("");
   const [filteredLocations, setFilteredLocations] = useState([]);
   const [showLocationSuggestions, setShowLocationSuggestions] = useState(false);
-  
+
   const [selectedProjectTypes, setSelectedProjectTypes] = useState([]);
   const [selectedStatus, setSelectedStatus] = useState("");
   const [selectedRedevelopmentBases, setSelectedRedevelopmentBases] = useState([]);
@@ -25,6 +27,43 @@ const EditSiteModal = ({
   const [newCoLocateRepower, setNewCoLocateRepower] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Field error display helper component
+  const FieldError = ({ field }) => {
+    const error = validationErrors[field];
+    if (!error) return null;
+    return (
+      <span style={{
+        display: 'block',
+        color: '#ef4444',
+        fontSize: '12px',
+        marginTop: '4px',
+        fontWeight: '500'
+      }}>
+        {error}
+      </span>
+    );
+  };
+
+  // Helper to get input class with error state
+  const getInputClass = (field) => {
+    return validationErrors[field] ? 'form-input input-error' : 'form-input';
+  };
+
+  const getSelectClass = (field) => {
+    return validationErrors[field] ? 'form-select input-error' : 'form-select';
+  };
+
+  // Clear specific field error when user makes changes
+  const clearFieldError = (field) => {
+    if (setValidationErrors && validationErrors[field]) {
+      setValidationErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[field];
+        return newErrors;
+      });
+    }
+  };
   const {
     // From lookup tables:
     projectTypeOptions = [],
@@ -222,7 +261,10 @@ const EditSiteModal = ({
       ...prev,
       [field]: value
     }));
-    
+
+    // Clear validation error for this field
+    clearFieldError(field);
+
     if (field === "Location") {
       setLocationInput(value);
     }
@@ -255,7 +297,8 @@ const EditSiteModal = ({
   const handleLegacyCODChange = (value) => {
     const digitsOnly = value.replace(/\D/g, '').slice(0, 4);
     handleInputChange("Legacy COD", digitsOnly);
-    
+    clearFieldError("legacy_cod");
+
     // Auto-update status
     if (digitsOnly.length === 4) {
       const redevCOD = formData["Redev COD"] || "";
@@ -379,13 +422,12 @@ const EditSiteModal = ({
   // Form validation and submission
   const handleSubmit = (e) => {
     e.preventDefault();
-    
-    // Required fields
-    if (!formData["Project Name"] || formData["Project Name"].trim() === "") {
-      alert("Please enter a Project Name");
-      return;
+
+    // Clear any previous validation errors
+    if (setValidationErrors) {
+      setValidationErrors({});
     }
-    
+
     console.log("Submitting updated project:", formData);
     console.log("Project ID:", formData.id);
     console.log("Project Type:", formData["Project Type"]);
@@ -394,7 +436,7 @@ const EditSiteModal = ({
     console.log("Status:", formData["Status"]);
     console.log("Redev Fuel:", formData["Redev Fuel"]);
     console.log("Redev Base Case:", formData["Redevelopment Base Case"]);
-    
+
     handleUpdateProject(formData);
   };
 
@@ -482,12 +524,13 @@ const EditSiteModal = ({
                   <label className="form-label required">Project Name</label>
                   <input
                     type="text"
-                    className="form-input"
+                    className={getInputClass("project_name")}
                     value={formData["Project Name"] || ""}
                     onChange={(e) => handleInputChange("Project Name", e.target.value)}
                     placeholder="Enter project name"
                     required
                   />
+                  <FieldError field="project_name" />
                 </div>
                 
                 <div className="form-group">
@@ -556,7 +599,7 @@ const EditSiteModal = ({
                 <div className="form-group">
                   <label className="form-label">M&A Tier</label>
                   <select
-                    className="form-select"
+                    className={getSelectClass("ma_tier")}
                     value={formData["M&A Tier"] || ""}
                     onChange={(e) => handleMaTierChange(e.target.value)}
                   >
@@ -567,12 +610,13 @@ const EditSiteModal = ({
                       </option>
                     ))}
                   </select>
+                  <FieldError field="ma_tier" />
                 </div>
 
                 <div className="form-group">
                   <label className="form-label">Status</label>
                   <select
-                    className="form-select"
+                    className={getSelectClass("status")}
                     value={selectedStatus}
                     onChange={(e) => handleStatusChange(e.target.value)}
                   >
@@ -581,6 +625,7 @@ const EditSiteModal = ({
                       <option key={status} value={status}>{status}</option>
                     ))}
                   </select>
+                  <FieldError field="status" />
                 </div>
               </div>
             </div>
@@ -593,13 +638,14 @@ const EditSiteModal = ({
                   <label className="form-label">Capacity (MW)</label>
                   <input
                     type="number"
-                    className="form-input"
+                    className={getInputClass("legacy_nameplate_capacity_mw")}
                     value={formData["Legacy Nameplate Capacity (MW)"] || ""}
                     onChange={(e) => handleInputChange("Legacy Nameplate Capacity (MW)", e.target.value)}
                     placeholder="Enter capacity in MW"
                     step="any"
                     min="0"
                   />
+                  <FieldError field="legacy_nameplate_capacity_mw" />
                 </div>
                 
                 {/* NEW: POI Voltage Field - Added after Capacity MW */}
@@ -607,13 +653,14 @@ const EditSiteModal = ({
                   <label className="form-label">POI Voltage (KV)</label>
                   <input
                     type="number"
-                    className="form-input"
+                    className={getInputClass("poi_voltage_kv")}
                     value={formData["POI Voltage (KV)"] || ""}
                     onChange={(e) => handlePoiVoltageChange(e.target.value)}
                     placeholder="Enter POI voltage in KV"
                     step="any"
                     min="0"
                   />
+                  <FieldError field="poi_voltage_kv" />
                 </div>
                 
                 <div className="form-group">
@@ -634,20 +681,21 @@ const EditSiteModal = ({
                   <label className="form-label">Heat Rate (Btu/kWh)</label>
                   <input
                     type="number"
-                    className="form-input"
+                    className={getInputClass("heat_rate_btu_kwh")}
                     value={formData["Heat Rate (Btu/kWh)"] || ""}
                     onChange={(e) => handleInputChange("Heat Rate (Btu/kWh)", e.target.value)}
                     placeholder="Enter heat rate"
                     step="any"
                     min="0"
                   />
+                  <FieldError field="heat_rate_btu_kwh" />
                 </div>
-                
+
                 <div className="form-group">
                   <label className="form-label">Capacity Factor (%)</label>
                   <input
                     type="number"
-                    className="form-input"
+                    className={getInputClass("capacity_factor_2024")}
                     value={formData["2024 Capacity Factor"] || ""}
                     onChange={(e) => handleInputChange("2024 Capacity Factor", e.target.value)}
                     placeholder="Enter capacity factor"
@@ -655,18 +703,20 @@ const EditSiteModal = ({
                     min="0"
                     max="100"
                   />
+                  <FieldError field="capacity_factor_2024" />
                 </div>
                 
                 <div className="form-group">
                   <label className="form-label">Legacy COD</label>
                   <input
                     type="text"
-                    className="form-input"
+                    className={getInputClass("legacy_cod")}
                     value={formData["Legacy COD"] || ""}
                     onChange={(e) => handleLegacyCODChange(e.target.value)}
                     placeholder="YYYY"
                     maxLength="4"
                   />
+                  <FieldError field="legacy_cod" />
                   <small className="form-hint">Used to calculate status if no Redev COD</small>
                 </div>
                 
@@ -852,13 +902,14 @@ const EditSiteModal = ({
                   <label className="form-label">Redev Capacity (MW)</label>
                   <input
                     type="number"
-                    className="form-input"
+                    className={getInputClass("redev_capacity_mw")}
                     value={formData["Redev Capacity (MW)"] || ""}
                     onChange={(e) => handleInputChange("Redev Capacity (MW)", e.target.value)}
                     placeholder="Enter redev capacity"
                     step="any"
                     min="0"
                   />
+                  <FieldError field="redev_capacity_mw" />
                 </div>
 
                 {/* Redev Tech */}
@@ -940,13 +991,14 @@ const EditSiteModal = ({
                   <label className="form-label">Redev Heatrate (Btu/kWh)</label>
                   <input
                     type="number"
-                    className="form-input"
+                    className={getInputClass("redev_heatrate_btu_kwh")}
                     value={formData["Redev Heatrate (Btu/kWh)"] || ""}
                     onChange={(e) => handleInputChange("Redev Heatrate (Btu/kWh)", e.target.value)}
                     placeholder="Enter redev heatrate"
                     step="any"
                     min="0"
                   />
+                  <FieldError field="redev_heatrate_btu_kwh" />
                 </div>
 
                 {/* Redev COD */}
