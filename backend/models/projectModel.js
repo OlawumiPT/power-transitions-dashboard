@@ -245,6 +245,7 @@ const createProject = async (projectData) => {
 
       const maTierMap = {
         'owned': 1,
+        'signed': 8,
         'exclusivity': 2,
         'second round': 3,
         'first round': 4,
@@ -482,6 +483,7 @@ const updateProject = async (id, updates) => {
 
       const maTierMap = {
         'owned': 1,
+        'signed': 8,
         'exclusivity': 2,
         'second round': 3,
         'first round': 4,
@@ -777,15 +779,16 @@ const getDashboardStats = async () => {
       },
       
       maTierDistribution: {
-        text: `SELECT ma_tier, COUNT(*) as count FROM ${schema}.projects WHERE is_active = true AND ma_tier IS NOT NULL GROUP BY ma_tier ORDER BY 
+        text: `SELECT ma_tier, COUNT(*) as count FROM ${schema}.projects WHERE is_active = true AND ma_tier IS NOT NULL GROUP BY ma_tier ORDER BY
           CASE ma_tier
             WHEN 'Owned' THEN 1
-            WHEN 'Exclusivity' THEN 2
-            WHEN 'second round' THEN 3
-            WHEN 'first round' THEN 4
-            WHEN 'pipeline' THEN 5
-            WHEN 'passed' THEN 6
-            ELSE 7
+            WHEN 'Signed' THEN 2
+            WHEN 'Exclusivity' THEN 3
+            WHEN 'second round' THEN 4
+            WHEN 'first round' THEN 5
+            WHEN 'pipeline' THEN 6
+            WHEN 'passed' THEN 7
+            ELSE 8
           END`,
       },
       
@@ -863,15 +866,16 @@ const getFilterOptions = async () => {
       },
       
       maTiers: {
-        text: `SELECT DISTINCT ma_tier as value FROM ${schema}.projects WHERE is_active = true AND ma_tier IS NOT NULL AND ma_tier != '' ORDER BY 
+        text: `SELECT DISTINCT ma_tier as value FROM ${schema}.projects WHERE is_active = true AND ma_tier IS NOT NULL AND ma_tier != '' ORDER BY
           CASE ma_tier
             WHEN 'Owned' THEN 1
-            WHEN 'Exclusivity' THEN 2
-            WHEN 'second round' THEN 3
-            WHEN 'first round' THEN 4
-            WHEN 'pipeline' THEN 5
-            WHEN 'passed' THEN 6
-            ELSE 7
+            WHEN 'Signed' THEN 2
+            WHEN 'Exclusivity' THEN 3
+            WHEN 'second round' THEN 4
+            WHEN 'first round' THEN 5
+            WHEN 'pipeline' THEN 6
+            WHEN 'passed' THEN 7
+            ELSE 8
           END`,
       },
       
@@ -976,6 +980,7 @@ const upsertProject = async (projectData, updatedBy = 'import') => {
       const normalizedValue = maTierValue.toString().toLowerCase().trim();
       const maTierMap = {
         'owned': 1,
+        'signed': 8,
         'exclusivity': 2,
         'second round': 3,
         'first round': 4,

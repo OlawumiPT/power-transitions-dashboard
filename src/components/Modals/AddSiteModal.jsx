@@ -594,6 +594,7 @@ const AddSiteModal = ({
                     ) : (
                       <>
                         <option value="Owned">Owned</option>
+                        <option value="Signed">Signed</option>
                         <option value="Exclusivity">Exclusivity</option>
                         <option value="second round">Second round</option>
                         <option value="first round">First round</option>

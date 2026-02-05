@@ -47,6 +47,7 @@ const EditSiteModal = ({
   
   const defaultMaTierOptions = [
     'Owned',
+    'Signed',
     'Exclusivity',
     'Second round',
     'First round',
