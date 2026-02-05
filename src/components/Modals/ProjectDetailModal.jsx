@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { scoringWeights } from '../../constants/scoringWeights';
 
-const ProjectDetailModal = ({ selectedProject, closeProjectDetail }) => {
+const ProjectDetailModal = ({ selectedProject, closeProjectDetail, handleEditProject }) => {
   if (!selectedProject) return null;
 
   const [tooltipContent, setTooltipContent] = useState(null);
@@ -10,7 +10,151 @@ const ProjectDetailModal = ({ selectedProject, closeProjectDetail }) => {
 
   const detailData = selectedProject.detailData || {};
 
- 
+  // NEW: Handle edit click in modal
+  const handleEditClick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('🚨🚨🚨 === DEBUG: Edit clicked from Modal === 🚨🚨🚨');
+    
+    const row = selectedProject;
+    console.log('📋 FULL ROW OBJECT:', row);
+    console.log('🔑 ROW KEYS:', Object.keys(row));
+    
+    // DEBUG: Check for redevelopment fields
+    console.log('🔍 CHECKING FOR REDEVELOPMENT FIELDS:');
+    console.log('   redevBaseCase:', row.redevBaseCase);
+    console.log('   redevCapacity:', row.redevCapacity);
+    console.log('   redevTier:', row.redevTier);
+    console.log('   redevTech:', row.redevTech);
+    console.log('   redevFuel:', row.redevFuel);
+    console.log('   redevLead:', row.redevLead);
+    console.log('   redevStageGate:', row.redevStageGate);
+    console.log('   maTier:', row.maTier);
+    console.log('   status:', row.status);
+    console.log('   poiVoltage:', row.poiVoltage);
+    
+    // Check for Project Type specifically
+    console.log('🎯 LOOKING FOR PROJECT TYPE:');
+    console.log('   Direct projectType property:', row.projectType);
+    console.log('   Direct Project Type property:', row["Project Type"]);
+    
+    // Find Project Type from ANY possible source
+    let foundProjectType = '';
+    
+    // First check direct properties
+    if (row.projectType) {
+      foundProjectType = row.projectType;
+      console.log('✅ Found projectType in row.projectType:', foundProjectType);
+    } else if (row["Project Type"]) {
+      foundProjectType = row["Project Type"];
+      console.log('✅ Found Project Type in row["Project Type"]:', foundProjectType);
+    } else if (row.Project_Type) {
+      foundProjectType = row.Project_Type;
+      console.log('✅ Found Project Type in row.Project_Type:', foundProjectType);
+    } else if (row.project_type) {
+      foundProjectType = row.project_type;
+      console.log('✅ Found Project Type in row.project_type:', foundProjectType);
+    } else {
+      // Check nested objects
+      console.log('🔍 Checking nested objects for Project Type...');
+      
+      if (row.originalData) {
+        console.log('🔍 Checking row.originalData for Project Type...');
+        const originalData = row.originalData;
+        if (originalData["Project Type"]) {
+          foundProjectType = originalData["Project Type"];
+          console.log('✅ Found Project Type in row.originalData["Project Type"]:', foundProjectType);
+        } else if (originalData.projectType) {
+          foundProjectType = originalData.projectType;
+          console.log('✅ Found Project Type in row.originalData.projectType:', foundProjectType);
+        }
+      }
+      
+      if (!foundProjectType && row.sourceData) {
+        console.log('🔍 Checking row.sourceData for Project Type...');
+        const sourceData = row.sourceData;
+        if (sourceData["Project Type"]) {
+          foundProjectType = sourceData["Project Type"];
+          console.log('✅ Found Project Type in row.sourceData["Project Type"]:', foundProjectType);
+        }
+      }
+      
+      if (!foundProjectType && row.detailData) {
+        console.log('🔍 Checking row.detailData for Project Type...');
+        const detailData = row.detailData;
+        if (detailData["Project Type"]) {
+          foundProjectType = detailData["Project Type"];
+          console.log('✅ Found Project Type in row.detailData["Project Type"]:', foundProjectType);
+        }
+      }
+    }
+    
+    if (!foundProjectType) {
+      console.log('❌ No Project Type found in any location.');
+    } else {
+      console.log('🎉 FINAL Project Type found:', foundProjectType);
+    }
+    
+    const originalData = {
+      ...row,
+      "Legacy Nameplate Capacity (MW)": row.mw || "",
+      "Project Name": row.asset || "",
+      "Plant Owner": row.owner || "",
+      "Location": row.location || "",
+      "Tech": row.tech || "",
+      "Heat Rate (Btu/kWh)": row.hr || "",
+      "2024 Capacity Factor": row.cf || "",
+      "Legacy COD": row.cod || "",
+      "ISO": row.mkt || "",
+      "Zone/Submarket": row.zone || "",
+      "Overall Project Score": row.overall || "",
+      "Thermal Operating Score": row.thermal || "",
+      "Redevelopment Score": row.redev || "",
+      "Redevelopment Base Case": row.redevBaseCase || "",
+      "Redev Capacity (MW)": row.redevCapacity || "",
+      "Redev Tier": row.redevTier || "",
+      "Redev Tech": row.redevTech || "",
+      "Redev Fuel": row.redevFuel || "",
+      "Redev Heatrate (Btu/kWh)": row.redevHeatrate || "",
+      "Redev COD": row.redevCOD || "",
+      "Redev Land Control": row.redevLandControl || "",
+      "Redev Stage Gate": row.redevStageGate || "",
+      "Redev Lead": row.redevLead || "",
+      "Redev Support": row.redevSupport || "",
+      "M&A Tier": row.maTier || "",
+      "Status": row.status || "",
+      "POI Voltage (KV)": row.poiVoltage || "",
+      "Transactability Scores": row.transactabilityScore || "",
+      "Transactability": row.transactability || "",
+      "Project Codename": row.codename || "",
+      "Site Acreage": row.acreage || "",
+      "Fuel": row.fuel || "",
+      "Markets": row.markets || "",
+      "Process (P) or Bilateral (B)": row.process || "",
+      "Gas Reference": row.gasReference || "",
+      "Co-Locate/Repower": row.colocateRepower || "",
+      "Contact": row.contact || "",
+      "Project Type": foundProjectType || "",
+    };
+    
+    console.log('📤 FINAL DATA BEING SENT TO EDIT MODAL:');
+    console.log('   Project Type:', originalData["Project Type"]);
+    console.log('   M&A Tier:', originalData["M&A Tier"]);
+    console.log('   Status:', originalData["Status"]);
+    console.log('   POI Voltage:', originalData["POI Voltage (KV)"]);
+    console.log('   Redev Tier:', originalData["Redev Tier"]);
+    console.log('   Redev Tech:', originalData["Redev Tech"]);
+    console.log('   All keys in originalData:', Object.keys(originalData));
+    
+    if (handleEditProject && typeof handleEditProject === 'function') {
+      console.log('✅ Calling handleEditProject with data');
+      handleEditProject(originalData);
+    } else {
+      console.error('❌ handleEditProject is not a valid function:', handleEditProject);
+      alert('Edit functionality is not available. Please check console for details.');
+    }
+  };
+
   const isPresent = (v) => {
     if (v === 0) return true;       
     if (v === false) return true;    
@@ -426,7 +570,22 @@ const ProjectDetailModal = ({ selectedProject, closeProjectDetail }) => {
         <div className="modal-content" onClick={(e) => e.stopPropagation()}>
           <div className="modal-header">
             <h2 className="modal-title">{selectedProject.asset} - Project Details</h2>
-            <button className="modal-close" onClick={closeProjectDetail}>×</button>
+            <div className="modal-header-actions">
+              {/* NEW: Edit button added next to close button */}
+              <button 
+                className="modal-edit-btn"
+                onClick={handleEditClick}
+                title="Edit project"
+                aria-label={`Edit ${selectedProject.asset || 'project'}`}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                </svg>
+                Edit
+              </button>
+              <button className="modal-close" onClick={closeProjectDetail}>×</button>
+            </div>
           </div>
 
           <div className="modal-body">
@@ -812,7 +971,7 @@ const ProjectDetailModal = ({ selectedProject, closeProjectDetail }) => {
         </div>
       </div>
 
-      {/* CSS Styles for Tooltips */}
+      {/* CSS Styles for Tooltips AND New Edit Button Styles */}
       <style>{`
         .score-tooltip {
           background: white;
@@ -971,6 +1130,37 @@ const ProjectDetailModal = ({ selectedProject, closeProjectDetail }) => {
           text-decoration: none;
         }
 
+        /* NEW: Styles for the edit button in modal header */
+        .modal-header-actions {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .modal-edit-btn {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          padding: 6px 12px;
+          background: #3b82f6;
+          color: white;
+          border: none;
+          border-radius: 4px;
+          font-size: 13px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: background-color 0.2s ease;
+        }
+
+        .modal-edit-btn:hover {
+          background: #2563eb;
+        }
+
+        .modal-edit-btn svg {
+          width: 14px;
+          height: 14px;
+        }
+
         /* Responsive tooltip positioning */
         @media (max-width: 768px) {
           .score-tooltip {
@@ -993,6 +1183,11 @@ const ProjectDetailModal = ({ selectedProject, closeProjectDetail }) => {
 
           .criteria-desc {
             min-width: 120px;
+          }
+
+          .modal-edit-btn {
+            padding: 5px 10px;
+            font-size: 12px;
           }
         }
 
@@ -1029,6 +1224,17 @@ const ProjectDetailModal = ({ selectedProject, closeProjectDetail }) => {
           .info-icon-superscript {
             font-size: 14px !important;
             padding: 4px;
+          }
+
+          .modal-header-actions {
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 4px;
+          }
+
+          .modal-edit-btn {
+            width: 100%;
+            justify-content: center;
           }
         }
 

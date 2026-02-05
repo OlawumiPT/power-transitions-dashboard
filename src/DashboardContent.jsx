@@ -2347,8 +2347,6 @@ const handleUpdateProject = async (updatedData) => {
         getSortedPipelineRows={getSortedPipelineRows}
         handleProjectClick={handleProjectClick}
         kpiRow1={kpiRow1}
-        handleEditProject={handleEditProject}
-        handleDeleteProject={handleDeleteProject}
         activeTechFilter={activeTechFilter}
         clearTechFilter={() => setActiveTechFilter(null)}
         handleFilterByCounterparty={handleFilterByCounterparty}
@@ -2395,6 +2393,7 @@ const handleUpdateProject = async (updatedData) => {
           <ProjectDetailModal
             selectedProject={selectedProject}
             closeProjectDetail={closeProjectDetail}
+            handleEditProject={handleEditProject}
           />
         )}
         
