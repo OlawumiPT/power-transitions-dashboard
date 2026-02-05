@@ -36,7 +36,11 @@ const validateEnum = (value, allowed) => {
   if (isNullOrEmpty(value)) {
     return { valid: true }; // All enum fields are optional
   }
-  if (!allowed.includes(value)) {
+  // Case-insensitive comparison for enum values
+  const normalizedValue = value.toString().toLowerCase().trim();
+  const normalizedAllowed = allowed.map(v => v.toLowerCase());
+
+  if (!normalizedAllowed.includes(normalizedValue)) {
     return { valid: false, message: `Must be one of: ${allowed.join(', ')}` };
   }
   return { valid: true };

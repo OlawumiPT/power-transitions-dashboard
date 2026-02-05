@@ -4,6 +4,15 @@ const router = express.Router();
 const database = require('../utils/db');
 const pool = database.getPool();
 
+/**
+ * Title case a string (capitalize first letter of each word)
+ * "second round" -> "Second round", "pipeline" -> "Pipeline"
+ */
+const toTitleCase = (str) => {
+  if (!str) return str;
+  return str.charAt(0).toUpperCase() + str.slice(1);
+};
+
 // GET /api/dropdown-options
 router.get('/', async (req, res) => {
   try {
@@ -17,6 +26,7 @@ router.get('/', async (req, res) => {
       redevLeads,
       redevSupports,
       coLocateOptions,
+      maTiers,
       plantOwners,
       technologies,
       fuelTypes,
@@ -29,6 +39,7 @@ router.get('/', async (req, res) => {
       pool.query('SELECT id, lead_name as name FROM redev_lead_options ORDER BY lead_name'),
       pool.query('SELECT id, support_name as name FROM redev_support_options ORDER BY support_name'),
       pool.query('SELECT id, option_name as name FROM co_locate_repower_options ORDER BY option_name'),
+      pool.query('SELECT id, tier_name as name, color_hex FROM ma_tiers WHERE is_active = true ORDER BY tier_order'),
       
       // FROM PROJECTS TABLE - CORRECT COLUMN NAMES:
       // Plant Owners - from plant_owner column (TEXT type)
@@ -91,6 +102,10 @@ router.get('/', async (req, res) => {
       redevLeadOptions: redevLeads.rows,
       redevSupportOptions: redevSupports.rows,
       coLocateRepowerOptions: coLocateOptions.rows,
+      maTierOptions: maTiers.rows.map(row => ({
+        ...row,
+        name: toTitleCase(row.name)
+      })),
       
       // From distinct values in projects table
       plantOwners: plantOwners.rows.map(row => row.name).filter(name => name && name.trim() !== ''),
@@ -146,6 +161,7 @@ router.get('/', async (req, res) => {
       redevLeadOptions: [{ id: 1, name: "John Doe" }, { id: 2, name: "Jane Smith" }, { id: 3, name: "Mike Johnson" }, { id: 4, name: "Sarah Williams" }],
       redevSupportOptions: [{ id: 1, name: "Engineering" }, { id: 2, name: "Finance" }, { id: 3, name: "Legal" }, { id: 4, name: "Operations" }, { id: 5, name: "Regulatory" }],
       coLocateRepowerOptions: [{ id: 1, name: "Solar Co-location" }, { id: 2, name: "BESS Co-location" }, { id: 3, name: "Full Repower" }, { id: 4, name: "Partial Repower" }, { id: 5, name: "Hybrid System" }],
+      maTierOptions: [{ id: 1, name: "Owned" }, { id: 2, name: "Exclusivity" }, { id: 3, name: "Second round" }, { id: 4, name: "First round" }, { id: 5, name: "Pipeline" }, { id: 6, name: "Passed" }, { id: 7, name: "Signed" }],
       plantOwners: ["Calpine/Constellation", "Rockland", "Telen", "JERA"],
       technologyOptions: ["ST", "GT", "CCGT", "Hydro", "Wind", "Solar", "BESS", "Other"],
       fuelTypes: ["Coal", "Gas", "Oil", "Nuclear", "Biomass", "Hydro", "Wind", "Solar"],

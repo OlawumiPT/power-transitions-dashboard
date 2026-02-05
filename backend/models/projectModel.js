@@ -226,51 +226,53 @@ const getProjectByName = async (name) => {
 
 const createProject = async (projectData) => {
   const client = await pool.connect();
-  
+
   try {
     await client.query('BEGIN');
-    
+
     console.log('📥 Received project data:', projectData);
-    
+
+    const schema = process.env.DB_SCHEMA || 'pipeline_dashboard';
     const columns = [];
     const placeholders = [];
     const values = [];
     let paramCount = 1;
 
-    const handleMaTier = (maTierValue) => {
-      if (!maTierValue) return null;
+    // Dynamic lookup of ma_tier from database (case-insensitive)
+    const lookupMaTier = async (maTierValue) => {
+      if (!maTierValue) return { id: null, tierName: null };
 
-      // Normalize to lowercase for case-insensitive matching
-      const normalizedValue = maTierValue.toString().toLowerCase().trim();
+      const lookupQuery = `
+        SELECT id, tier_name
+        FROM ${schema}.ma_tiers
+        WHERE LOWER(tier_name) = LOWER($1) AND is_active = true
+        LIMIT 1
+      `;
+      const result = await client.query(lookupQuery, [maTierValue.toString().trim()]);
 
-      const maTierMap = {
-        'owned': 1,
-        'signed': 7,
-        'exclusivity': 2,
-        'second round': 3,
-        'first round': 4,
-        'pipeline': 5,
-        'passed': 6
-      };
-
-      return maTierMap[normalizedValue] || null;
+      if (result.rows.length > 0) {
+        return { id: result.rows[0].id, tierName: result.rows[0].tier_name };
+      }
+      console.warn(`⚠️ M&A Tier "${maTierValue}" not found in ma_tiers table`);
+      return { id: null, tierName: maTierValue };
     };
 
     for (const [key, value] of Object.entries(projectData)) {
       if (!['id', 'mw', 'hr', 'cf', 'mkt', 'zone', 'ma_tier_id'].includes(key)) {
         if (key === 'ma_tier' || key === 'M&A Tier') {
-          const maTierId = handleMaTier(value);
-          if (maTierId !== null) {
+          const maTierLookup = await lookupMaTier(value);
+
+          if (maTierLookup.id !== null) {
             columns.push('ma_tier_id');
             placeholders.push(`$${paramCount}`);
-            values.push(maTierId);
+            values.push(maTierLookup.id);
             paramCount++;
           }
           columns.push('ma_tier');
           placeholders.push(`$${paramCount}`);
-          values.push(value);
+          values.push(maTierLookup.tierName);
           paramCount++;
-        } 
+        }
         else if (key === 'poi_voltage_kv' || key === 'POI Voltage (KV)') {
           columns.push('poi_voltage_kv');
           placeholders.push(`$${paramCount}`);
@@ -303,7 +305,6 @@ const createProject = async (projectData) => {
     values.push('system', 'system', true);
     paramCount += 3;
 
-    const schema = process.env.DB_SCHEMA || 'pipeline_dashboard';
     const query = `
       INSERT INTO ${schema}.projects (${columns.join(', ')})
       VALUES (${placeholders.join(', ')})
@@ -457,55 +458,55 @@ const createProject = async (projectData) => {
 
 const updateProject = async (id, updates) => {
   const client = await pool.connect();
-  
+
   try {
     await client.query('BEGIN');
-    
+
     const schema = process.env.DB_SCHEMA || 'pipeline_dashboard';
     const checkQuery = `SELECT id FROM ${schema}.projects WHERE id = $1 AND is_active = true`;
     const checkResult = await client.query(checkQuery, [id]);
-    
+
     if (checkResult.rows.length === 0) {
       throw new Error('Project not found or inactive');
     }
-    
+
     const setClauses = [];
     const values = [];
     let paramCount = 1;
 
     console.log('🔄 Updates received:', updates);
-    
-    const handleMaTier = (maTierValue) => {
-      if (!maTierValue) return null;
 
-      // Normalize to lowercase for case-insensitive matching
-      const normalizedValue = maTierValue.toString().toLowerCase().trim();
+    // Dynamic lookup of ma_tier from database (case-insensitive)
+    const lookupMaTier = async (maTierValue) => {
+      if (!maTierValue) return { id: null, tierName: null };
 
-      const maTierMap = {
-        'owned': 1,
-        'signed': 7,
-        'exclusivity': 2,
-        'second round': 3,
-        'first round': 4,
-        'pipeline': 5,
-        'passed': 6
-      };
+      const lookupQuery = `
+        SELECT id, tier_name
+        FROM ${schema}.ma_tiers
+        WHERE LOWER(tier_name) = LOWER($1) AND is_active = true
+        LIMIT 1
+      `;
+      const result = await client.query(lookupQuery, [maTierValue.toString().trim()]);
 
-      return maTierMap[normalizedValue] || null;
+      if (result.rows.length > 0) {
+        return { id: result.rows[0].id, tierName: result.rows[0].tier_name };
+      }
+      console.warn(`⚠️ M&A Tier "${maTierValue}" not found in ma_tiers table`);
+      return { id: null, tierName: maTierValue }; // Return original value if not found
     };
 
     for (const [key, value] of Object.entries(updates)) {
       if (!['id', 'mw', 'hr', 'cf', 'mkt', 'zone'].includes(key)) {
         if (key === 'ma_tier' || key === 'M&A Tier') {
-          const maTierValue = value;
-          const maTierId = handleMaTier(maTierValue);
-          
+          const maTierLookup = await lookupMaTier(value);
+
+          // Use the exact tier_name from database to satisfy foreign key constraint
           setClauses.push(`ma_tier = $${paramCount}`);
-          values.push(maTierValue);
+          values.push(maTierLookup.tierName);
           paramCount++;
-          
+
           setClauses.push(`ma_tier_id = $${paramCount}`);
-          values.push(maTierId);
+          values.push(maTierLookup.id);
           paramCount++;
         } 
         else if (key === 'status' || key === 'Status') {
@@ -965,20 +966,23 @@ const upsertProject = async (projectData, updatedBy = 'import') => {
 
     const schema = process.env.DB_SCHEMA || 'pipeline_dashboard';
 
-    // Handle ma_tier to ma_tier_id mapping
-    const handleMaTier = (maTierValue) => {
-      if (!maTierValue) return null;
-      const normalizedValue = maTierValue.toString().toLowerCase().trim();
-      const maTierMap = {
-        'owned': 1,
-        'signed': 7,
-        'exclusivity': 2,
-        'second round': 3,
-        'first round': 4,
-        'pipeline': 5,
-        'passed': 6
-      };
-      return maTierMap[normalizedValue] || null;
+    // Dynamic lookup of ma_tier from database (case-insensitive)
+    const lookupMaTier = async (maTierValue) => {
+      if (!maTierValue) return { id: null, tierName: null };
+
+      const lookupQuery = `
+        SELECT id, tier_name
+        FROM ${schema}.ma_tiers
+        WHERE LOWER(tier_name) = LOWER($1) AND is_active = true
+        LIMIT 1
+      `;
+      const result = await client.query(lookupQuery, [maTierValue.toString().trim()]);
+
+      if (result.rows.length > 0) {
+        return { id: result.rows[0].id, tierName: result.rows[0].tier_name };
+      }
+      console.warn(`⚠️ M&A Tier "${maTierValue}" not found in ma_tiers table`);
+      return { id: null, tierName: maTierValue };
     };
 
     // Build column lists and values
@@ -1018,19 +1022,19 @@ const upsertProject = async (projectData, updatedBy = 'import') => {
       if (!validColumns.includes(columnName) && key !== 'ma_tier') continue;
 
       if (key === 'ma_tier' || columnName === 'ma_tier') {
-        // Handle ma_tier specially
-        const maTierId = handleMaTier(value);
-        if (maTierId !== null) {
+        // Handle ma_tier with dynamic lookup
+        const maTierLookup = await lookupMaTier(value);
+        if (maTierLookup.id !== null) {
           columns.push('ma_tier_id');
           placeholders.push(`$${paramCount}`);
           updateClauses.push(`ma_tier_id = $${paramCount}`);
-          values.push(maTierId);
+          values.push(maTierLookup.id);
           paramCount++;
         }
         columns.push('ma_tier');
         placeholders.push(`$${paramCount}`);
         updateClauses.push(`ma_tier = $${paramCount}`);
-        values.push(value === '' || value === null ? null : value);
+        values.push(maTierLookup.tierName === '' || maTierLookup.tierName === null ? null : maTierLookup.tierName);
         paramCount++;
       } else {
         columns.push(columnName);
