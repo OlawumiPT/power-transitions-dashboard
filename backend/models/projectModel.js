@@ -1,7 +1,7 @@
 const database = require('../utils/db');
 const pool = database.getPool();
 const { calculateAllScores } = require('../utils/scoreCalculations');
-const { calculateMarketScore, calculateCODScore, calculateCapacityFactorScore, calculateStatus } = require('../utils/importUtils');
+const { calculateMarketScore, calculateCODScore, calculateCapacityFactorScore, calculateTransactabilityScore, calculateStatus } = require('../utils/importUtils');
 
 // ========== PROJECT DATA OPERATIONS ==========
 
@@ -313,11 +313,138 @@ const createProject = async (projectData) => {
     console.log('📝 Values:', values);
     
     const result = await client.query(query, values);
-    
+    const insertedRow = result.rows[0];
+
+    // ========== RECALCULATE SCORES ==========
+    // After creating, calculate all derived and composite scores
+    console.log('🔄 Recalculating scores for new project...');
+
+    // 1. Calculate derived scores from raw values
+    const derivedScores = {};
+
+    // Market score from ISO
+    if (insertedRow.iso) {
+      derivedScores.markets = calculateMarketScore(insertedRow.iso);
+    }
+
+    // COD score from Legacy COD
+    if (insertedRow.legacy_cod) {
+      derivedScores.plant_cod = calculateCODScore(insertedRow.legacy_cod);
+    }
+
+    // Capacity factor score from capacity_factor_2024
+    if (insertedRow.capacity_factor_2024 !== null && insertedRow.capacity_factor_2024 !== undefined) {
+      derivedScores.capacity_factor = calculateCapacityFactorScore(insertedRow.capacity_factor_2024);
+    }
+
+    // Transactability score from transactability field (handles both numeric and text)
+    const transactValue = insertedRow.transactability_scores || insertedRow.transactability;
+    if (transactValue !== null && transactValue !== undefined && transactValue !== '') {
+      derivedScores.transactability_scores = calculateTransactabilityScore(transactValue);
+    }
+
+    // Status from COD dates
+    derivedScores.status = calculateStatus(insertedRow.legacy_cod, insertedRow.redev_cod);
+
+    // 2. Merge derived scores into the row for composite calculation
+    const rowWithDerived = { ...insertedRow, ...derivedScores };
+
+    // 3. Calculate composite scores
+    const compositeScores = calculateAllScores(rowWithDerived);
+
+    // 4. Update the database with all calculated scores
+    const scoreUpdateClauses = [];
+    const scoreValues = [];
+    let scoreParamCount = 1;
+
+    if (derivedScores.markets !== null && derivedScores.markets !== undefined) {
+      scoreUpdateClauses.push(`markets = $${scoreParamCount}`);
+      scoreValues.push(derivedScores.markets);
+      scoreParamCount++;
+    }
+
+    if (derivedScores.plant_cod !== null && derivedScores.plant_cod !== undefined) {
+      scoreUpdateClauses.push(`plant_cod = $${scoreParamCount}`);
+      scoreValues.push(derivedScores.plant_cod);
+      scoreParamCount++;
+    }
+
+    if (derivedScores.capacity_factor !== null && derivedScores.capacity_factor !== undefined) {
+      scoreUpdateClauses.push(`capacity_factor = $${scoreParamCount}`);
+      scoreValues.push(derivedScores.capacity_factor);
+      scoreParamCount++;
+    }
+
+    if (derivedScores.transactability_scores !== null && derivedScores.transactability_scores !== undefined) {
+      scoreUpdateClauses.push(`transactability_scores = $${scoreParamCount}`);
+      scoreValues.push(derivedScores.transactability_scores);
+      scoreParamCount++;
+    }
+
+    if (derivedScores.status) {
+      scoreUpdateClauses.push(`status = $${scoreParamCount}`);
+      scoreValues.push(derivedScores.status);
+      scoreParamCount++;
+    }
+
+    if (compositeScores.thermal_score !== null) {
+      scoreUpdateClauses.push(`thermal_score = $${scoreParamCount}`);
+      scoreValues.push(compositeScores.thermal_score);
+      scoreParamCount++;
+      // Also update legacy column name
+      scoreUpdateClauses.push(`thermal_operating_score = $${scoreParamCount}`);
+      scoreValues.push(compositeScores.thermal_score);
+      scoreParamCount++;
+    }
+
+    if (compositeScores.redevelopment_score !== null) {
+      scoreUpdateClauses.push(`redev_score = $${scoreParamCount}`);
+      scoreValues.push(compositeScores.redevelopment_score);
+      scoreParamCount++;
+      // Also update legacy column name
+      scoreUpdateClauses.push(`redevelopment_score = $${scoreParamCount}`);
+      scoreValues.push(compositeScores.redevelopment_score);
+      scoreParamCount++;
+    }
+
+    if (compositeScores.overall_score !== null) {
+      scoreUpdateClauses.push(`overall_score = $${scoreParamCount}`);
+      scoreValues.push(compositeScores.overall_score);
+      scoreParamCount++;
+      // Also update legacy column name
+      scoreUpdateClauses.push(`overall_project_score = $${scoreParamCount}`);
+      scoreValues.push(compositeScores.overall_score);
+      scoreParamCount++;
+    }
+
+    // Only update scores if there are any to update
+    let finalRow = insertedRow;
+    if (scoreUpdateClauses.length > 0) {
+      scoreValues.push(insertedRow.id);
+      const scoreQuery = `
+        UPDATE ${schema}.projects
+        SET ${scoreUpdateClauses.join(', ')}
+        WHERE id = $${scoreParamCount}
+        RETURNING *
+      `;
+
+      console.log('📝 Score Update Query:', scoreQuery);
+      console.log('📝 Score Values:', scoreValues);
+
+      const scoreResult = await client.query(scoreQuery, scoreValues);
+      finalRow = scoreResult.rows[0];
+
+      console.log('✅ Scores calculated for new project:', {
+        thermal_score: compositeScores.thermal_score,
+        redev_score: compositeScores.redevelopment_score,
+        overall_score: compositeScores.overall_score
+      });
+    }
+
     await client.query('COMMIT');
-    
-    console.log(`✅ Created new project: ${result.rows[0].project_name}`);
-    return result.rows[0];
+
+    console.log(`✅ Created new project: ${finalRow.project_name}`);
+    return finalRow;
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('❌ Error in createProject:', error);
@@ -478,6 +605,12 @@ const updateProject = async (id, updates) => {
       derivedScores.capacity_factor = calculateCapacityFactorScore(updatedRow.capacity_factor_2024);
     }
 
+    // Transactability score from transactability field (handles both numeric and text)
+    const transactValue = updatedRow.transactability_scores || updatedRow.transactability;
+    if (transactValue !== null && transactValue !== undefined && transactValue !== '') {
+      derivedScores.transactability_scores = calculateTransactabilityScore(transactValue);
+    }
+
     // Status from COD dates
     derivedScores.status = calculateStatus(updatedRow.legacy_cod, updatedRow.redev_cod);
 
@@ -507,6 +640,12 @@ const updateProject = async (id, updates) => {
     if (derivedScores.capacity_factor !== null && derivedScores.capacity_factor !== undefined) {
       scoreUpdateClauses.push(`capacity_factor = $${scoreParamCount}`);
       scoreValues.push(derivedScores.capacity_factor);
+      scoreParamCount++;
+    }
+
+    if (derivedScores.transactability_scores !== null && derivedScores.transactability_scores !== undefined) {
+      scoreUpdateClauses.push(`transactability_scores = $${scoreParamCount}`);
+      scoreValues.push(derivedScores.transactability_scores);
       scoreParamCount++;
     }
 

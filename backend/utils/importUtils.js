@@ -164,6 +164,43 @@ function calculateCapacityFactorScore(cf) {
 }
 
 /**
+ * Calculate transactability score from value
+ * Handles both numeric dropdown values (1, 2, 3) and text descriptions
+ *
+ * Mapping:
+ * - Dropdown "1" / "Bilateral w/ developed relationship" → 3
+ * - Dropdown "2" / "Bilateral w/ new relationship" or "Process w/ <10 bidders" → 2
+ * - Dropdown "3" / "Competitive >10 bidders" → 1
+ */
+function calculateTransactabilityScore(value) {
+  if (value === null || value === undefined || value === '') return null;
+
+  // Handle numeric values (dropdown values 1, 2, 3)
+  const num = parseInt(value);
+  if (!isNaN(num)) {
+    // Dropdown value 1 = Bilateral w/ developed = highest score (3)
+    // Dropdown value 2 = Bilateral new/Process <10 = score 2
+    // Dropdown value 3 = Competitive >10 = lowest score (1)
+    if (num === 1) return 3;
+    if (num === 2) return 2;
+    if (num === 3) return 1;
+    // If it's already the actual score (1, 2, 3), return as-is
+    if (num >= 1 && num <= 3) return num;
+  }
+
+  // Handle text descriptions (from Excel imports)
+  const valueStr = String(value).trim();
+  if (valueStr === '' || valueStr === '#N/A' || valueStr === 'N/A' || valueStr === '#VALUE!') return null;
+
+  const lowerValue = valueStr.toLowerCase();
+  if (lowerValue.includes("bilateral") && lowerValue.includes("developed")) return 3;
+  if (lowerValue.includes("bilateral") || lowerValue.includes("process")) return 2;
+  if (lowerValue.includes("competitive")) return 1;
+
+  return 2; // Default
+}
+
+/**
  * Calculate status from COD dates
  */
 function calculateStatus(legacyCOD, redevCOD) {
@@ -314,6 +351,7 @@ module.exports = {
   calculateMarketScore,
   calculateCODScore,
   calculateCapacityFactorScore,
+  calculateTransactabilityScore,
   calculateStatus,
   transformExcelRow,
   transformExcelData
