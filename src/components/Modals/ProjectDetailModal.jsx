@@ -298,7 +298,8 @@ const ProjectDetailModal = ({ selectedProject, closeProjectDetail }) => {
     },
     {
       label: "Thermal Optimization",
-      score: displayScore(detailData["Thermal Optimization"]),
+      // Thermal Optimization defaults to 0 if not supplied (not N/A)
+      score: displayScore(detailData["Thermal Optimization"], detailData["thermal_optimization"], 0),
       weight: thermalWeights.thermal_optimization,
       displayWeight: "5%"
     },
