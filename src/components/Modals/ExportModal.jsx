@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import './ExportModal.css';
-import { exportToExcel, generateTemplate } from '../../utils/excelUtils';
+import { exportToExcel } from '../../utils/excelUtils';
 
 const ExportModal = ({ 
   showExportModal, 
@@ -40,8 +40,13 @@ const ExportModal = ({
         break;
         
       case 'template':
-        const headers = Object.keys(allData[0] || {});
-        generateTemplate(headers, `project_template_${new Date().toISOString().split('T')[0]}.xlsx`);
+        // Download the standardized import template from new_format folder
+        const link = document.createElement('a');
+        link.href = '/new_format/import_template.xlsx';
+        link.download = 'import_template.xlsx';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
         setExportLoading(false);
         setShowExportModal(false);
         return;
@@ -141,11 +146,11 @@ const ExportModal = ({
                 <div className="option-content">
                   <span className="option-title">Download Template</span>
                   <span className="option-description">
-                    Get Excel template with column structure and examples
+                    Get standardized import template with ideal column structure
                   </span>
                   <div className="filter-summary">
                     <strong>Template file</strong>
-                    <span className="filter-details">With data validation and examples</span>
+                    <span className="filter-details">38 columns with reference sheets</span>
                   </div>
                 </div>
               </label>

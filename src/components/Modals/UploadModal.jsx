@@ -247,15 +247,20 @@ const UploadModal = ({
               </div>
               
               <div className="template-help">
-                <p>📋 Don't have the right format?</p>
-                <button 
+                <p>Don't have the right format?</p>
+                <button
                   className="template-btn"
                   onClick={() => {
-                    // This would trigger template download
-                    alert('First use the Export button to download a template!');
+                    // Download the import template from new_format folder
+                    const link = document.createElement('a');
+                    link.href = '/new_format/import_template.xlsx';
+                    link.download = 'import_template.xlsx';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
                   }}
                 >
-                  Download Template First
+                  Download Template
                 </button>
               </div>
             </div>
