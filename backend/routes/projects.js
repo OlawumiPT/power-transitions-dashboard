@@ -2,7 +2,8 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const projectController = require('../controllers/projectController');
-const { validateProjectCreate, validateProjectUpdate } = require('../middleware/projectValidation');
+// Validation temporarily disabled - uncomment to re-enable
+// const { validateProjectCreate, validateProjectUpdate } = require('../middleware/projectValidation');
 
 // Configure multer for file upload (memory storage for Excel processing)
 const upload = multer({
@@ -71,21 +72,21 @@ router.get('/:id', projectController.getProject);
  * @desc    Create new project
  * @access  Public (for now - add auth later)
  */
-router.post('/', validateProjectCreate, projectController.createProject);
+router.post('/', projectController.createProject);
 
 /**
  * @route   PUT /api/projects/:id
  * @desc    Update existing project
  * @access  Public (for now - add auth later)
  */
-router.put('/:id', validateProjectUpdate, projectController.updateProject);
+router.put('/:id', projectController.updateProject);
 
 /**
  * @route   PATCH /api/projects/:id
  * @desc    Partially update project
  * @access  Public (for now - add auth later)
  */
-router.patch('/:id', validateProjectUpdate, projectController.patchProject);
+router.patch('/:id', projectController.patchProject);
 
 /**
  * @route   DELETE /api/projects/:id

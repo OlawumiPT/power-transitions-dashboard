@@ -199,9 +199,9 @@ const EditSiteModal = ({
                               projectData.heat_rate_btu_kwh || 
                               projectData.hr || 
                               "",
-        "2024 Capacity Factor": projectData["2024 Capacity Factor"] || 
-                               projectData.capacity_factor_percent || 
-                               projectData.cf || 
+        "2024 Capacity Factor": projectData["2024 Capacity Factor"] ||
+                               projectData.capacity_factor_2024 ||
+                               projectData.capacity_factor_percent ||
                                "",
         "Legacy COD": projectData["Legacy COD"] || projectData.legacy_cod || projectData.cod || "",
         "Fuel": projectData["Fuel"] || projectData.fuel_type || projectData.fuel || "",
