@@ -1,4 +1,4 @@
-﻿name: Deploy Vite React App
+name: Deploy Frontend to Azure Static Web App
 
 on:
   push:
@@ -8,23 +8,22 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      
+      - uses: actions/checkout@v4
+
       - name: Setup Node.js 20
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-      
+
       - name: Install dependencies
         run: npm ci
-      
+
       - name: Build Vite app
         run: npm run build
         env:
-          VITE_API_URL: 'https://pt-power-pipeline-api.azurewebsites.net/api'
-          VITE_PUBLIC_URL: '/'
-      
+          VITE_API_URL: 'https://pt-power-pipeline-api.azurewebsites.net'
+
       - name: Deploy to Azure Static Web App
         uses: Azure/static-web-apps-deploy@v1
         with:
