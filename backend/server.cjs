@@ -306,7 +306,14 @@ const limiter = rateLimit({
   message: {
     success: false,
     error: 'Too many requests from this IP, please try again later.'
-  }
+  },
+  keyGenerator: (req) => {
+    // Handle Azure proxy format (IP:port) by extracting just the IP
+    const forwarded = req.headers['x-forwarded-for'];
+    const ip = forwarded ? forwarded.split(',')[0].trim() : req.ip;
+    return ip.split(':')[0]; // Remove port if present
+  },
+  validate: { trustProxy: false }
 });
 app.use('/api/', limiter);
 
