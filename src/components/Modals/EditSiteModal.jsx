@@ -80,7 +80,44 @@ const EditSiteModal = ({
     redevLandControlOptions = ["Y", "N"],
     redevStageGateOptions = ["0", "1", "2", "3", "P"]
   } = dropdownOptions || {};
-  
+
+  // Mapping from form field names to backend validation field names
+  const FORM_TO_BACKEND_FIELD = {
+    "Project Name": "project_name",
+    "Project Codename": "project_codename",
+    "Plant Owner": "plant_owner",
+    "Location": "location",
+    "Site Acreage": "site_acreage",
+    "M&A Tier": "ma_tier",
+    "Status": "status",
+    "Legacy Nameplate Capacity (MW)": "legacy_nameplate_capacity_mw",
+    "POI Voltage (KV)": "poi_voltage_kv",
+    "Tech": "tech",
+    "Heat Rate (Btu/kWh)": "heat_rate_btu_kwh",
+    "2024 Capacity Factor": "capacity_factor_2024",
+    "Legacy COD": "legacy_cod",
+    "Fuel": "fuel",
+    "ISO": "iso",
+    "Zone/Submarket": "zone_submarket",
+    "Process (P) or Bilateral (B)": "process_type",
+    "Transactability": "transactability",
+    "Gas Reference": "gas_reference",
+    "Redev Tier": "redev_tier",
+    "Redevelopment Base Case": "redevelopment_base_case",
+    "Redev Capacity (MW)": "redev_capacity_mw",
+    "Redev Tech": "redev_tech",
+    "Redev Fuel": "redev_fuel",
+    "Redev Heatrate (Btu/kWh)": "redev_heatrate_btu_kwh",
+    "Redev COD": "redev_cod",
+    "Redev Land Control": "redev_land_control",
+    "Redev Stage Gate": "redev_stage_gate",
+    "Redev Lead": "redev_lead",
+    "Redev Support": "redev_support",
+    "Co-Locate/Repower": "co_locate_repower",
+    "Contact": "contact",
+    "Project Type": "project_type",
+  };
+
   const defaultMaTierOptions = [
     'Owned',
     'Signed',
@@ -259,8 +296,9 @@ const EditSiteModal = ({
       [field]: value
     }));
 
-    // Clear validation error for this field
-    clearFieldError(field);
+    // Clear validation error using backend field name
+    const backendField = FORM_TO_BACKEND_FIELD[field] || field;
+    clearFieldError(backendField);
 
     if (field === "Location") {
       setLocationInput(value);
