@@ -845,16 +845,14 @@ function DashboardContent() {
 
   const handleEditProject = (project) => {
     console.log('🎯 handleEditProject called with:', project);
-    
-    // Try multiple ways to find the project data
-    const fullProjectData = allData.find(row => 
-      row.id === project.id || 
-      row.project_id === project.id ||
-      row["Project Name"] === project.asset ||
-      row.project_name === project.asset ||
-      row.project_codename === project.codename
-    ) || project.detailData || project;
-    
+
+    // Use the project data directly - it's already enriched from handleProjectClick
+    // Merge detailData to top level for EditSiteModal compatibility
+    const fullProjectData = {
+      ...project.detailData,
+      ...project,
+    };
+
     setEditingProject(fullProjectData);
     setShowEditModal(true);
   };
@@ -2376,7 +2374,7 @@ const handleUpdateProject = async (updatedData) => {
         />
         
         {/* UPDATED: Pass new filter handlers to BottomGridSection */}
-      <BottomGridSection 
+      <BottomGridSection
         counterparties={counterparties}
         pipelineRows={autoSortedPipelineRows.length > 0 ? autoSortedPipelineRows : pipelineRows} // Pass auto-sorted rows
         sortConfig={sortConfig}
@@ -2386,7 +2384,6 @@ const handleUpdateProject = async (updatedData) => {
         getSortedPipelineRows={getSortedPipelineRows}
         handleProjectClick={handleProjectClick}
         kpiRow1={kpiRow1}
-        handleEditProject={handleEditProject}
         handleDeleteProject={handleDeleteProject}
         activeTechFilter={activeTechFilter}
         clearTechFilter={() => setActiveTechFilter(null)}
@@ -2438,6 +2435,7 @@ const handleUpdateProject = async (updatedData) => {
           <ProjectDetailModal
             selectedProject={selectedProject}
             closeProjectDetail={closeProjectDetail}
+            handleEditProject={handleEditProject}
           />
         )}
         

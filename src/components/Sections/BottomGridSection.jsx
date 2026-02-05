@@ -1,17 +1,16 @@
 import React from 'react';
 import PipelineTable from '../Pipeline/PipelineTable';
 
-const BottomGridSection = ({ 
-  counterparties, 
-  pipelineRows, 
-  sortConfig, 
-  handleSort, 
-  getSortDirectionClass, 
+const BottomGridSection = ({
+  counterparties,
+  pipelineRows,
+  sortConfig,
+  handleSort,
+  getSortDirectionClass,
   resetSort,
   getSortedPipelineRows,
   handleProjectClick,
   kpiRow1,
-  handleEditProject,
   handleDeleteProject,
   activeTechFilter,
   clearTechFilter,
@@ -24,18 +23,6 @@ const BottomGridSection = ({
   clearRedevFilter,
   selectedProjectType
 }) => {
-
-    console.log('🔍 BottomGridSection - Props received:', {
-    hasHandleEditProject: !!handleEditProject,
-    typeOfHandleEditProject: typeof handleEditProject,
-    hasHandleDeleteProject: !!handleDeleteProject,
-    typeOfHandleDeleteProject: typeof handleDeleteProject,
-    hasActiveTechFilter: !!activeTechFilter,
-    hasClearTechFilter: !!clearTechFilter,
-    hasHandleFilterByCounterparty: !!handleFilterByCounterparty,
-    hasActiveCounterpartyFilter: !!activeCounterpartyFilter,
-    selectedProjectType: selectedProjectType 
-  });
 
   return (
     <section className="bottom-grid">
@@ -348,7 +335,7 @@ const BottomGridSection = ({
           </div>
         )}
         
-        <PipelineTable 
+        <PipelineTable
           pipelineRows={pipelineRows}
           sortConfig={sortConfig}
           handleSort={handleSort}
@@ -356,8 +343,6 @@ const BottomGridSection = ({
           resetSort={resetSort}
           getSortedPipelineRows={getSortedPipelineRows}
           handleProjectClick={handleProjectClick}
-          handleEditProject={handleEditProject}
-          handleDeleteProject={handleDeleteProject}
           activeTechFilter={activeTechFilter}
           clearTechFilter={clearTechFilter}
           activeCounterpartyFilter={activeCounterpartyFilter}
@@ -374,14 +359,13 @@ const BottomGridSection = ({
 };
 
 BottomGridSection.defaultProps = {
-  handleEditProject: () => console.warn('BottomGridSection: handleEditProject not provided'),
   handleDeleteProject: () => console.warn('BottomGridSection: handleDeleteProject not provided'),
   clearTechFilter: () => console.warn('BottomGridSection: clearTechFilter not provided'),
   handleFilterByCounterparty: () => console.warn('BottomGridSection: handleFilterByCounterparty not provided'),
   clearCounterpartyFilter: () => console.warn('BottomGridSection: clearCounterpartyFilter not provided'),
   clearIsoFilter: () => console.warn('BottomGridSection: clearIsoFilter not provided'),
   clearRedevFilter: () => console.warn('BottomGridSection: clearRedevFilter not provided'),
-  selectedProjectType: 'All' 
+  selectedProjectType: 'All'
 };
 
 export default BottomGridSection;

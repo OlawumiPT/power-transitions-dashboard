@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { scoringWeights } from '../../constants/scoringWeights';
 
-const ProjectDetailModal = ({ selectedProject, closeProjectDetail }) => {
+const ProjectDetailModal = ({ selectedProject, closeProjectDetail, handleEditProject }) => {
   if (!selectedProject) return null;
 
   const [tooltipContent, setTooltipContent] = useState(null);
@@ -807,6 +807,15 @@ const ProjectDetailModal = ({ selectedProject, closeProjectDetail }) => {
           <div className="modal-footer">
             <button className="btn btn-secondary" onClick={closeProjectDetail}>
               Close
+            </button>
+            <button
+              className="btn btn-primary"
+              onClick={() => {
+                handleEditProject(selectedProject);
+                closeProjectDetail();
+              }}
+            >
+              Edit Project
             </button>
           </div>
         </div>
