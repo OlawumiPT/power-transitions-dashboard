@@ -145,8 +145,10 @@ const EditSiteModal = ({
                         projectData.gas_reference || 
                         projectData.gasReference || 
                         "",
-        "Transactability": projectData["Transactability"] || 
-                          projectData.transactability_score || 
+        "Transactability": projectData["Transactability"] ||
+                          projectData["Transactability Scores"] ||
+                          projectData.transactability_scores ||
+                          projectData.transactability ||
                           "",
         "Redev Tier": projectData["Redev Tier"] || projectData.redev_tier || "",
         "Redevelopment Base Case": projectData["Redevelopment Base Case"] || 
@@ -383,11 +385,6 @@ const EditSiteModal = ({
       return;
     }
     
-    if (!formData["Plant Owner"] || formData["Plant Owner"].trim() === "") {
-      alert("Please select or enter a Plant Owner");
-      return;
-    }
-    
     console.log("Submitting updated project:", formData);
     console.log("Project ID:", formData.id);
     console.log("Project Type:", formData["Project Type"]);
@@ -504,12 +501,11 @@ const EditSiteModal = ({
                 </div>
                 
                 <div className="form-group">
-                  <label className="form-label required">Plant Owner</label>
+                  <label className="form-label">Plant Owner</label>
                   <select
                     className="form-select"
                     value={formData["Plant Owner"] || ""}
                     onChange={(e) => handleInputChange("Plant Owner", e.target.value)}
-                    required
                   >
                     <option value="">Select Plant Owner</option>
                     {plantOwners.map(owner => (

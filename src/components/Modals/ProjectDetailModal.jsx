@@ -291,8 +291,13 @@ const ProjectDetailModal = ({ selectedProject, closeProjectDetail }) => {
     },
     {
       label: "Transactability",
-      // FIX: Use "Transactability Scores" column (AH) not "Transactibility"
-      score: displayScore(cleanTransactabilityScore(detailData["Transactability Scores"])),
+      // Check all possible column names for transactability score
+      score: displayScore(
+        detailData["Transactability Scores"],
+        detailData["transactability_scores"],
+        detailData["Transactability"],
+        detailData["transactability"]
+      ),
       weight: thermalWeights.transactability,
       displayWeight: "30%"
     },

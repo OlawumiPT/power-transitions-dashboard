@@ -1497,20 +1497,15 @@ const handleUpdateProject = async (updatedData) => {
       }
       
       const newProject = await response.json();
-      
-      // Add to local state
-      const updatedData = [...allData, newProject];
-      setAllData(updatedData);
-      
-      // Recalculate data
-      const headers = Object.keys(updatedData[0] || {});
-      calculateAllData(updatedData, headers, {
-        setKpiRow1, setKpiRow2, setIsoData, setTechData, 
-        setRedevelopmentTypes, setCounterparties, setPipelineRows
-      });
-      
+      console.log('✅ New project created:', newProject);
+
       closeAddSiteModal();
-      alert("Site added successfully!");
+
+      // Show success message
+      alert(`Project "${newProject.data?.project_name || newProject.project_name || cleanSiteData.project_name}" added successfully!`);
+
+      // Refresh data from database to get fully calculated scores
+      await fetchData();
     } catch (error) {
       console.error('❌ Add site error:', error);
       alert(`Failed to add site: ${error.message}`);
@@ -1747,9 +1742,9 @@ const handleUpdateProject = async (updatedData) => {
           "Thermal Optimization": project.thermal_optimization || "",
           "Co-Locate/Repower": project.co_locate_repower || "",
           "Contact": project.contact || "",
-          "Overall Project Score": project.overall_project_score || "",
-          "Thermal Operating Score": project.thermal_operating_score || "",
-          "Redevelopment Score": project.redevelopment_score || "",
+          "Overall Project Score": project.overall_score || project.overall_project_score || "",
+          "Thermal Operating Score": project.thermal_score || project.thermal_operating_score || "",
+          "Redevelopment Score": project.redev_score || project.redevelopment_score || "",
           "Redevelopment (Load) Score": project.redevelopment_load_score || "",
           "I&C Score": project.ic_score || "",
           "Environmental Score": project.environmental_score || "",

@@ -380,11 +380,6 @@ const AddSiteModal = ({
       return;
     }
     
-    if (!newSiteData["plant_owner"] || newSiteData["plant_owner"].trim() === "") {
-      alert("Please select or enter a Plant Owner");
-      return;
-    }
-    
     // Log for debugging
     console.log("Submitting new project:", {
       project_name: newSiteData["project_name"],
@@ -496,13 +491,12 @@ const AddSiteModal = ({
                 </div>
                 
                 <div className="form-group">
-                  <label className="form-label required">Plant Owner</label>
+                  <label className="form-label">Plant Owner</label>
                   <div className="select-with-add" style={{ width: '100%' }}>
                     <select
                       className="form-select"
                       value={newSiteData["plant_owner"] || newSiteData["Plant Owner"] || ""}
                       onChange={(e) => handlePlantOwnerChange(e.target.value)}
-                      required
                       disabled={showNewOwnerInput}
                       style={{ width: '100%' }}
                     >

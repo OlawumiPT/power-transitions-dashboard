@@ -79,7 +79,7 @@ function calculateThermalScore(data) {
   // Extract values with fallbacks for both database column names and Excel column names
   const cod = getScore(data.plant_cod, data["Plant  COD"], data["Plant COD"]);
   const markets = getScore(data.markets, data["Markets"]);
-  const transact = getScore(data.transactability_scores, data["Transactability Scores"]);
+  const transact = getScore(data.transactability_scores, data["Transactability Scores"], data.transactability, data["Transactability"]);
   const environmental = getScore(data.environmental_score, data["Envionmental Score"], data["Environmental Score"]);
 
   // Thermal optimization defaults to 0 (yet to be saved) - this is the EXCEPTION

@@ -1,5 +1,7 @@
 const database = require('../utils/db');
 const pool = database.getPool();
+const { calculateAllScores } = require('../utils/scoreCalculations');
+const { calculateMarketScore, calculateCODScore, calculateCapacityFactorScore, calculateStatus } = require('../utils/importUtils');
 
 // ========== PROJECT DATA OPERATIONS ==========
 
@@ -388,13 +390,37 @@ const updateProject = async (id, updates) => {
         }
         else if (key === 'poi_voltage_kv' || key === 'POI Voltage (KV)') {
           setClauses.push(`poi_voltage_kv = $${paramCount}`);
-          
+
           if (value === '' || value === null || value === undefined) {
             values.push(null);
           } else {
             values.push(value);
           }
-          
+
+          paramCount++;
+        }
+        else if (key === 'transactability' || key === 'Transactability') {
+          // Sync both transactability columns
+          const transactValue = value === '' || value === null || value === undefined ? null : value;
+
+          setClauses.push(`transactability = $${paramCount}`);
+          values.push(transactValue);
+          paramCount++;
+
+          setClauses.push(`transactability_scores = $${paramCount}`);
+          values.push(transactValue);
+          paramCount++;
+        }
+        else if (key === 'transactability_scores' || key === 'Transactability Scores') {
+          // Sync both transactability columns
+          const transactValue = value === '' || value === null || value === undefined ? null : value;
+
+          setClauses.push(`transactability_scores = $${paramCount}`);
+          values.push(transactValue);
+          paramCount++;
+
+          setClauses.push(`transactability = $${paramCount}`);
+          values.push(transactValue);
           paramCount++;
         }
         else {
@@ -427,11 +453,127 @@ const updateProject = async (id, updates) => {
     console.log('📝 Values being sent:', values);
     
     const result = await client.query(query, values);
-    
+
+    const updatedRow = result.rows[0];
+
+    // ========== RECALCULATE SCORES ==========
+    // After updating raw values, recalculate all derived and composite scores
+    console.log('🔄 Recalculating scores for updated project...');
+
+    // Calculate derived scores from raw values
+    const derivedScores = {};
+
+    // Market score from ISO
+    if (updatedRow.iso) {
+      derivedScores.markets = calculateMarketScore(updatedRow.iso);
+    }
+
+    // COD score from Legacy COD
+    if (updatedRow.legacy_cod) {
+      derivedScores.plant_cod = calculateCODScore(updatedRow.legacy_cod);
+    }
+
+    // Capacity factor score from capacity_factor_2024
+    if (updatedRow.capacity_factor_2024 !== null && updatedRow.capacity_factor_2024 !== undefined) {
+      derivedScores.capacity_factor = calculateCapacityFactorScore(updatedRow.capacity_factor_2024);
+    }
+
+    // Status from COD dates
+    derivedScores.status = calculateStatus(updatedRow.legacy_cod, updatedRow.redev_cod);
+
+    // Merge derived scores into the row for composite calculation
+    const rowWithDerived = { ...updatedRow, ...derivedScores };
+
+    // Calculate composite scores
+    const compositeScores = calculateAllScores(rowWithDerived);
+
+    // Update the calculated scores in the database
+    const scoreUpdateClauses = [];
+    const scoreValues = [];
+    let scoreParamCount = 1;
+
+    if (derivedScores.markets !== null && derivedScores.markets !== undefined) {
+      scoreUpdateClauses.push(`markets = $${scoreParamCount}`);
+      scoreValues.push(derivedScores.markets);
+      scoreParamCount++;
+    }
+
+    if (derivedScores.plant_cod !== null && derivedScores.plant_cod !== undefined) {
+      scoreUpdateClauses.push(`plant_cod = $${scoreParamCount}`);
+      scoreValues.push(derivedScores.plant_cod);
+      scoreParamCount++;
+    }
+
+    if (derivedScores.capacity_factor !== null && derivedScores.capacity_factor !== undefined) {
+      scoreUpdateClauses.push(`capacity_factor = $${scoreParamCount}`);
+      scoreValues.push(derivedScores.capacity_factor);
+      scoreParamCount++;
+    }
+
+    if (derivedScores.status) {
+      scoreUpdateClauses.push(`status = $${scoreParamCount}`);
+      scoreValues.push(derivedScores.status);
+      scoreParamCount++;
+    }
+
+    if (compositeScores.thermal_score !== null) {
+      scoreUpdateClauses.push(`thermal_score = $${scoreParamCount}`);
+      scoreValues.push(compositeScores.thermal_score);
+      scoreParamCount++;
+      // Also update legacy column name
+      scoreUpdateClauses.push(`thermal_operating_score = $${scoreParamCount}`);
+      scoreValues.push(compositeScores.thermal_score);
+      scoreParamCount++;
+    }
+
+    if (compositeScores.redevelopment_score !== null) {
+      scoreUpdateClauses.push(`redev_score = $${scoreParamCount}`);
+      scoreValues.push(compositeScores.redevelopment_score);
+      scoreParamCount++;
+      // Also update legacy column name
+      scoreUpdateClauses.push(`redevelopment_score = $${scoreParamCount}`);
+      scoreValues.push(compositeScores.redevelopment_score);
+      scoreParamCount++;
+    }
+
+    if (compositeScores.overall_score !== null) {
+      scoreUpdateClauses.push(`overall_score = $${scoreParamCount}`);
+      scoreValues.push(compositeScores.overall_score);
+      scoreParamCount++;
+      // Also update legacy column name
+      scoreUpdateClauses.push(`overall_project_score = $${scoreParamCount}`);
+      scoreValues.push(compositeScores.overall_score);
+      scoreParamCount++;
+    }
+
+    // Only update scores if there are any to update
+    let finalRow = updatedRow;
+    if (scoreUpdateClauses.length > 0) {
+      scoreValues.push(id);
+      const scoreQuery = `
+        UPDATE ${schema}.projects
+        SET ${scoreUpdateClauses.join(', ')}
+        WHERE id = $${scoreParamCount}
+        RETURNING *
+      `;
+
+      console.log('📝 Score Update Query:', scoreQuery);
+      console.log('📝 Score Values:', scoreValues);
+
+      const scoreResult = await client.query(scoreQuery, scoreValues);
+      finalRow = scoreResult.rows[0];
+
+      console.log('✅ Scores recalculated:', {
+        thermal_score: compositeScores.thermal_score,
+        redev_score: compositeScores.redevelopment_score,
+        overall_score: compositeScores.overall_score
+      });
+    }
+
     await client.query('COMMIT');
-    
-    console.log(`✅ Updated project: ${result.rows[0].project_name}`);
-    return result.rows[0];
+
+    console.log(`✅ Updated project: ${finalRow.project_name}`);
+    return finalRow;
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('❌ Error in updateProject:', error);
