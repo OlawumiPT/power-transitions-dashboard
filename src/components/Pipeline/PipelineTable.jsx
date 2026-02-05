@@ -390,7 +390,7 @@ const PipelineTable = ({
           )}
           {selectedProjectType === 'M&A' && (
             <span className="pipeline-filter-indicator amber">
-              ⬆ Sorted by: M&A Tier (Owned → Exclusivity → Second round → First round → Pipeline → Passed)
+              ⬆ Sorted by: M&A Tier (Owned → Signed → Exclusivity → Second round → First round → Pipeline → Passed)
             </span>
           )}
         </div>

@@ -595,11 +595,12 @@ function DashboardContent() {
   const sortMaTier = (a, b) => {
     const maTierOrder = {
       'owned': 0,
-      'exclusivity': 1,
-      'second round': 2,
-      'first round': 3,
-      'pipeline': 4,
-      'passed': 5
+      'signed': 1,
+      'exclusivity': 2,
+      'second round': 3,
+      'first round': 4,
+      'pipeline': 5,
+      'passed': 6
     };
     
     const getMaTierValue = (tier) => {
@@ -2420,7 +2421,6 @@ const handleUpdateProject = async (updatedData) => {
             showEditModal={showEditModal}
             closeEditModal={closeEditModal}
             handleUpdateProject={handleUpdateProject}
-            handleDeleteProject={handleDeleteProject}
             projectData={editingProject}
             allData={allData}
             dropdownOptions={dropdownOptions}
