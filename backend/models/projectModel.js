@@ -587,31 +587,29 @@ const updateProject = async (id, updates) => {
 
     // ========== RECALCULATE SCORES ==========
     // After updating raw values, recalculate all derived and composite scores
+    // IMPORTANT: Always calculate scores, returning NULL when source is NULL
+    // This ensures clearing a source value (e.g., legacy_cod) clears its derived score (plant_cod)
     console.log('🔄 Recalculating scores for updated project...');
 
-    // Calculate derived scores from raw values
+    // Calculate derived scores from raw values (NULL source → NULL score)
     const derivedScores = {};
 
-    // Market score from ISO
-    if (updatedRow.iso) {
-      derivedScores.markets = calculateMarketScore(updatedRow.iso);
-    }
+    // Market score from ISO (NULL if ISO is empty)
+    derivedScores.markets = updatedRow.iso ? calculateMarketScore(updatedRow.iso) : null;
 
-    // COD score from Legacy COD
-    if (updatedRow.legacy_cod) {
-      derivedScores.plant_cod = calculateCODScore(updatedRow.legacy_cod);
-    }
+    // COD score from Legacy COD (NULL if legacy_cod is empty)
+    derivedScores.plant_cod = updatedRow.legacy_cod ? calculateCODScore(updatedRow.legacy_cod) : null;
 
-    // Capacity factor score from capacity_factor_2024
-    if (updatedRow.capacity_factor_2024 !== null && updatedRow.capacity_factor_2024 !== undefined) {
-      derivedScores.capacity_factor = calculateCapacityFactorScore(updatedRow.capacity_factor_2024);
-    }
+    // Capacity factor score (NULL if capacity_factor_2024 is empty)
+    derivedScores.capacity_factor = (updatedRow.capacity_factor_2024 !== null && updatedRow.capacity_factor_2024 !== undefined)
+      ? calculateCapacityFactorScore(updatedRow.capacity_factor_2024)
+      : null;
 
-    // Transactability score from transactability field (handles both numeric and text)
+    // Transactability score (NULL if both transactability fields are empty)
     const transactValue = updatedRow.transactability_scores || updatedRow.transactability;
-    if (transactValue !== null && transactValue !== undefined && transactValue !== '') {
-      derivedScores.transactability_scores = calculateTransactabilityScore(transactValue);
-    }
+    derivedScores.transactability_scores = (transactValue !== null && transactValue !== undefined && transactValue !== '')
+      ? calculateTransactabilityScore(transactValue)
+      : null;
 
     // Status from COD dates
     derivedScores.status = calculateStatus(updatedRow.legacy_cod, updatedRow.redev_cod);
@@ -623,71 +621,64 @@ const updateProject = async (id, updates) => {
     const compositeScores = calculateAllScores(rowWithDerived);
 
     // Update the calculated scores in the database
+    // IMPORTANT: Always include derived scores (even NULL) to ensure clearing propagates
     const scoreUpdateClauses = [];
     const scoreValues = [];
     let scoreParamCount = 1;
 
-    if (derivedScores.markets !== null && derivedScores.markets !== undefined) {
-      scoreUpdateClauses.push(`markets = $${scoreParamCount}`);
-      scoreValues.push(derivedScores.markets);
-      scoreParamCount++;
-    }
+    // Always update markets (can be NULL)
+    scoreUpdateClauses.push(`markets = $${scoreParamCount}`);
+    scoreValues.push(derivedScores.markets);
+    scoreParamCount++;
 
-    if (derivedScores.plant_cod !== null && derivedScores.plant_cod !== undefined) {
-      scoreUpdateClauses.push(`plant_cod = $${scoreParamCount}`);
-      scoreValues.push(derivedScores.plant_cod);
-      scoreParamCount++;
-    }
+    // Always update plant_cod (can be NULL)
+    scoreUpdateClauses.push(`plant_cod = $${scoreParamCount}`);
+    scoreValues.push(derivedScores.plant_cod);
+    scoreParamCount++;
 
-    if (derivedScores.capacity_factor !== null && derivedScores.capacity_factor !== undefined) {
-      scoreUpdateClauses.push(`capacity_factor = $${scoreParamCount}`);
-      scoreValues.push(derivedScores.capacity_factor);
-      scoreParamCount++;
-    }
+    // Always update capacity_factor (can be NULL)
+    scoreUpdateClauses.push(`capacity_factor = $${scoreParamCount}`);
+    scoreValues.push(derivedScores.capacity_factor);
+    scoreParamCount++;
 
-    if (derivedScores.transactability_scores !== null && derivedScores.transactability_scores !== undefined) {
-      scoreUpdateClauses.push(`transactability_scores = $${scoreParamCount}`);
-      scoreValues.push(derivedScores.transactability_scores);
-      scoreParamCount++;
-    }
+    // Always update transactability_scores (can be NULL)
+    scoreUpdateClauses.push(`transactability_scores = $${scoreParamCount}`);
+    scoreValues.push(derivedScores.transactability_scores);
+    scoreParamCount++;
 
+    // Always update status
     if (derivedScores.status) {
       scoreUpdateClauses.push(`status = $${scoreParamCount}`);
       scoreValues.push(derivedScores.status);
       scoreParamCount++;
     }
 
-    if (compositeScores.thermal_score !== null) {
-      scoreUpdateClauses.push(`thermal_score = $${scoreParamCount}`);
-      scoreValues.push(compositeScores.thermal_score);
-      scoreParamCount++;
-      // Also update legacy column name
-      scoreUpdateClauses.push(`thermal_operating_score = $${scoreParamCount}`);
-      scoreValues.push(compositeScores.thermal_score);
-      scoreParamCount++;
-    }
+    // Always update composite scores (can be NULL for N/A display)
+    scoreUpdateClauses.push(`thermal_score = $${scoreParamCount}`);
+    scoreValues.push(compositeScores.thermal_score);
+    scoreParamCount++;
+    // Also update legacy column name
+    scoreUpdateClauses.push(`thermal_operating_score = $${scoreParamCount}`);
+    scoreValues.push(compositeScores.thermal_score);
+    scoreParamCount++;
 
-    if (compositeScores.redevelopment_score !== null) {
-      scoreUpdateClauses.push(`redev_score = $${scoreParamCount}`);
-      scoreValues.push(compositeScores.redevelopment_score);
-      scoreParamCount++;
-      // Also update legacy column name
-      scoreUpdateClauses.push(`redevelopment_score = $${scoreParamCount}`);
-      scoreValues.push(compositeScores.redevelopment_score);
-      scoreParamCount++;
-    }
+    scoreUpdateClauses.push(`redev_score = $${scoreParamCount}`);
+    scoreValues.push(compositeScores.redevelopment_score);
+    scoreParamCount++;
+    // Also update legacy column name
+    scoreUpdateClauses.push(`redevelopment_score = $${scoreParamCount}`);
+    scoreValues.push(compositeScores.redevelopment_score);
+    scoreParamCount++;
 
-    if (compositeScores.overall_score !== null) {
-      scoreUpdateClauses.push(`overall_score = $${scoreParamCount}`);
-      scoreValues.push(compositeScores.overall_score);
-      scoreParamCount++;
-      // Also update legacy column name
-      scoreUpdateClauses.push(`overall_project_score = $${scoreParamCount}`);
-      scoreValues.push(compositeScores.overall_score);
-      scoreParamCount++;
-    }
+    scoreUpdateClauses.push(`overall_score = $${scoreParamCount}`);
+    scoreValues.push(compositeScores.overall_score);
+    scoreParamCount++;
+    // Also update legacy column name
+    scoreUpdateClauses.push(`overall_project_score = $${scoreParamCount}`);
+    scoreValues.push(compositeScores.overall_score);
+    scoreParamCount++;
 
-    // Only update scores if there are any to update
+    // Update scores in the database
     let finalRow = updatedRow;
     if (scoreUpdateClauses.length > 0) {
       scoreValues.push(id);

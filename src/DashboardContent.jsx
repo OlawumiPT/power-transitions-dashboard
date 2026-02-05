@@ -1025,7 +1025,8 @@ const handleUpdateProject = async (updatedData) => {
       capacity_factor_2024: updatedData["2024 Capacity Factor"] || updatedData.cf || null,
       legacy_cod: updatedData["Legacy COD"] || updatedData.cod || null,
       fuel: updatedData["Fuel"] || updatedData.fuel || null,
-      
+      poi_voltage_kv: updatedData["POI Voltage (KV)"] || updatedData.poi_voltage_kv || null,
+
       // Market Details
       iso: updatedData["ISO"] || updatedData.mkt || null,
       zone_submarket: updatedData["Zone/Submarket"] || updatedData.zone || null,
@@ -1080,11 +1081,12 @@ const handleUpdateProject = async (updatedData) => {
       const transactInt = parseInt(backendData.transactability);
       backendData.transactability = isNaN(transactInt) ? null : transactInt;
     }
-    
-    // Remove any fields that are explicitly null or undefined
+
+    // Keep null values so backend can update columns to NULL
+    // Only filter out undefined (fields not in form)
     const cleanData = {};
     Object.keys(backendData).forEach(key => {
-      if (backendData[key] !== null && backendData[key] !== undefined) {
+      if (backendData[key] !== undefined) {
         cleanData[key] = backendData[key];
       }
     });

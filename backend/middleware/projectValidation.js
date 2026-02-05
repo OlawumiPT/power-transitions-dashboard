@@ -75,8 +75,11 @@ const ENUM_FIELDS = {
   redev_tier: ['0', '1', '2', '3'],
   redev_land_control: ['Y', 'N'],
   redev_stage_gate: ['0', '1', '2', '3', 'P'],
-  iso: ['PJM', 'NYISO', 'ISO-NE', 'MISO', 'SPP', 'ERCOT', 'WECC', 'CAISO', 'SERC'],
+  // NOTE: iso removed from strict validation - can contain multiple comma-separated values (e.g., "WECC, MISO, SPP")
 };
+
+// Valid ISO values for multi-value validation
+const VALID_ISOS = ['PJM', 'NYISO', 'ISO-NE', 'MISO', 'SPP', 'ERCOT', 'WECC', 'CAISO', 'SERC'];
 
 const SCORE_FIELDS = [
   { field: 'transactability_scores', min: 1, max: 3 },
@@ -170,9 +173,12 @@ const validateProjectCreate = (req, res, next) => {
  * Middleware for validating project updates
  */
 const validateProjectUpdate = (req, res, next) => {
+  console.log('📋 Validating project update:', JSON.stringify(req.body, null, 2));
+
   const errors = runValidations(req.body, false);
 
   if (errors.length > 0) {
+    console.log('❌ Validation failed:', errors);
     return res.status(400).json({
       success: false,
       error: 'Validation failed',
@@ -180,6 +186,7 @@ const validateProjectUpdate = (req, res, next) => {
     });
   }
 
+  console.log('✅ Validation passed');
   next();
 };
 
