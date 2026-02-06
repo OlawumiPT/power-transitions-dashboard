@@ -53,6 +53,31 @@ router.get('/stats', projectController.getDashboardStats);
 router.get('/filters', projectController.getFilterOptions);
 
 /**
+ * @route   GET /api/projects/ma-stats
+ * @desc    Get M&A pipeline statistics
+ * @access  Public (for now)
+ */
+router.get('/ma-stats', projectController.getMaStats);
+
+/**
+ * @route   GET /api/projects/ma-custom-fields
+ * @desc    List all custom M&A fields
+ */
+router.get('/ma-custom-fields', projectController.getCustomFields);
+
+/**
+ * @route   POST /api/projects/ma-custom-fields
+ * @desc    Add a new custom field (ALTER TABLE + registry)
+ */
+router.post('/ma-custom-fields', projectController.addCustomField);
+
+/**
+ * @route   DELETE /api/projects/ma-custom-fields/:id
+ * @desc    Remove a custom field (ALTER TABLE DROP + registry)
+ */
+router.delete('/ma-custom-fields/:id', projectController.removeCustomField);
+
+/**
  * @route   POST /api/projects/import
  * @desc    Import projects from Excel with upsert capability
  * @access  Public (for now - add auth later)

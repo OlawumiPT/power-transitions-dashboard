@@ -31,6 +31,7 @@ const getAllProjects = async (filters = {}) => {
     tech,
     project_type,
     ma_tier,
+    search,
     limit = 1000,
     offset = 0,
     sort_by = 'project_name',
@@ -42,71 +43,8 @@ const getAllProjects = async (filters = {}) => {
     const schema = process.env.DB_SCHEMA || 'pipeline_dashboard';
     
     let query = `
-      SELECT 
-        p.id,
-        p.excel_row_id,
-        p.plant_owner,
-        p.project_codename,
-        p.project_name,
-        p.overall_project_score,
-        p.thermal_operating_score,
-        p.redevelopment_score,
-        p.redevelopment_load_score,
-        p.ic_score,
-        p.process_type,
-        p.number_of_sites,
-        p.legacy_nameplate_capacity_mw,
-        p.tech,
-        p.heat_rate_btu_kwh,
-        p.capacity_factor_2024,
-        p.legacy_cod,
-        p.gas_reference,
-        p.redev_tier,
-        p.redevelopment_base_case,
-        p.redev_capacity_mw,
-        p.redev_tech,
-        p.redev_fuel,
-        p.redev_heatrate_btu_kwh,
-        p.redev_cod,
-        p.redev_land_control,
-        p.redev_stage_gate,
-        p.redev_lead,
-        p.redev_support,
-        p.contact,
-        p.iso,
-        p.zone_submarket,
-        p.location,
-        p.site_acreage,
-        p.fuel,
-        p.plant_cod,
-        p.capacity_factor,
-        p.markets,
-        p.thermal_optimization,
-        p.environmental_score,
-        p.market_score,
-        p.infra,
-        p.ix,
-        p.co_locate_repower,
-        p.transactability_scores,
-        p.transactability,
-        p.project_type,
-        p.status,
-        p.ma_tier,
-        p.ma_tier_id,
-        p.overall_score,
-        p.thermal_score,
-        p.redev_score,
-        p.mw,
-        p.hr,
-        p.cf,
-        p.mkt,
-        p.zone,
-        p.poi_voltage_kv,
-        p.created_at,
-        p.updated_at,
-        p.created_by,
-        p.updated_by,
-        p.is_active,
+      SELECT
+        p.*,
         mt.tier_name as ma_tier_name,
         mt.color_hex as ma_tier_color
       FROM ${schema}.projects p
@@ -159,11 +97,19 @@ const getAllProjects = async (filters = {}) => {
       paramCount++;
     }
 
+    if (search && search.trim()) {
+      query += ` AND (p.project_name ILIKE $${paramCount} OR p.project_codename ILIKE $${paramCount} OR p.iso ILIKE $${paramCount} OR p.plant_owner ILIKE $${paramCount})`;
+      values.push(`%${search.trim()}%`);
+      paramCount++;
+    }
+
     const validSortColumns = [
-      'id', 'project_name', 'project_codename', 'plant_owner', 'iso', 
-      'overall_score', 'thermal_score', 'redev_score', 'mw', 'hr', 'cf', 
+      'id', 'project_name', 'project_codename', 'plant_owner', 'iso',
+      'overall_score', 'thermal_score', 'redev_score', 'mw', 'hr', 'cf',
       'status', 'ma_tier', 'redev_tier', 'redev_stage_gate', 'transactability',
-      'created_at', 'updated_at', 'poi_voltage_kv'
+      'created_at', 'updated_at', 'poi_voltage_kv',
+      'legacy_nameplate_capacity_mw', 'ma_investment', 'ma_irr', 'ma_moic',
+      'ma_payback_period', 'ma_ntm_ebitda', 'ma_ev_ebitda_multiple'
     ];
     
     const safeSortBy = validSortColumns.includes(sort_by.toLowerCase()) 
@@ -1024,6 +970,12 @@ const upsertProject = async (projectData, updatedBy = 'import') => {
       'redev_land_control', 'redev_stage_gate', 'redev_lead', 'redev_support',
       'co_locate_repower', 'thermal_optimization', 'environmental_score',
       'market_score', 'infra', 'ix', 'ma_tier', 'poi_voltage_kv',
+      // M&A valuation columns
+      'ma_investment', 'ma_irr', 'ma_moic', 'ma_payback_period',
+      'ma_ntm_ebitda', 'ma_ev_ebitda_multiple', 'ma_avg_5yr_ebitda',
+      'ma_avg_5yr_multiple', 'ma_projected_useful_life',
+      'ma_contracted_hedged_capacity', 'ma_capacity_market_structure',
+      'ma_capacity_contract_term', 'ma_capacity_contract_price',
       // Calculated scores
       'plant_cod', 'capacity_factor', 'markets', 'fuel_score', 'capacity_size',
       'thermal_score', 'redev_score', 'overall_score', 'status',
@@ -1040,7 +992,8 @@ const upsertProject = async (projectData, updatedBy = 'import') => {
       const columnName = key.toLowerCase().replace(/[^a-z0-9_]/g, '_');
 
       if (skipColumns.includes(columnName)) continue;
-      if (!validColumns.includes(columnName) && key !== 'ma_tier') continue;
+      // Accept known columns, ma_tier special case, and dynamic custom fields (ma_custom_*)
+      if (!validColumns.includes(columnName) && key !== 'ma_tier' && !columnName.startsWith('ma_custom_')) continue;
 
       if (key === 'ma_tier' || columnName === 'ma_tier') {
         // Handle ma_tier with dynamic lookup
@@ -1187,11 +1140,161 @@ const getProjectsCount = async (filters = {}) => {
       paramCount++;
     }
 
+    if (filters.project_type && filters.project_type !== 'All') {
+      query += ` AND project_type ILIKE $${paramCount}`;
+      values.push(`%${filters.project_type}%`);
+      paramCount++;
+    }
+
+    if (filters.search && filters.search.trim()) {
+      query += ` AND (project_name ILIKE $${paramCount} OR project_codename ILIKE $${paramCount} OR iso ILIKE $${paramCount} OR plant_owner ILIKE $${paramCount})`;
+      values.push(`%${filters.search.trim()}%`);
+      paramCount++;
+    }
+
     const result = await pool.query(query, values);
     return parseInt(result.rows[0].total);
   } catch (error) {
     console.error('❌ Error in getProjectsCount:', error);
     throw new Error(`Failed to get projects count: ${error.message}`);
+  }
+};
+
+const getMaStats = async () => {
+  try {
+    const schema = process.env.DB_SCHEMA || 'pipeline_dashboard';
+
+    const query = `
+      SELECT
+        COUNT(*) as total_deals,
+        COALESCE(SUM(CAST(NULLIF(legacy_nameplate_capacity_mw,'') AS NUMERIC)), 0) as total_pipeline_mw,
+        COALESCE(SUM(ma_investment), 0) as total_investment,
+        ROUND(AVG(ma_ev_ebitda_multiple)::numeric, 1) as avg_ev_ebitda,
+        COUNT(CASE WHEN ma_tier IS NOT NULL AND LOWER(ma_tier) != 'passed' THEN 1 END) as active_deals
+      FROM ${schema}.projects
+      WHERE is_active = true AND project_type ILIKE '%M&A%'
+    `;
+
+    const result = await pool.query(query);
+    return result.rows[0];
+  } catch (error) {
+    console.error('Error in getMaStats:', error);
+    throw new Error(`Failed to fetch M&A stats: ${error.message}`);
+  }
+};
+
+// ========== CUSTOM FIELDS OPERATIONS ==========
+
+const TYPE_MAP = {
+  text: 'VARCHAR(255)',
+  number: 'NUMERIC(15,2)',
+  date: 'DATE'
+};
+
+const getCustomFields = async () => {
+  const schema = process.env.DB_SCHEMA || 'pipeline_dashboard';
+  const result = await pool.query(
+    `SELECT id, column_name, display_name, data_type, created_at
+     FROM ${schema}.ma_custom_fields
+     ORDER BY id`
+  );
+  return result.rows;
+};
+
+const addCustomField = async (displayName, dataType = 'text') => {
+  const schema = process.env.DB_SCHEMA || 'pipeline_dashboard';
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    // Sanitize to a safe column name
+    const safeName = displayName
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_|_$/g, '');
+    const columnName = `ma_custom_${safeName}`;
+
+    // Validate
+    if (!safeName || safeName.length === 0) {
+      throw new Error('Invalid field name');
+    }
+    if (columnName.length > 100) {
+      throw new Error('Field name too long');
+    }
+    const pgType = TYPE_MAP[dataType];
+    if (!pgType) {
+      throw new Error(`Invalid data type: ${dataType}. Use text, number, or date.`);
+    }
+
+    // Check for duplicates in registry
+    const dup = await client.query(
+      `SELECT id FROM ${schema}.ma_custom_fields WHERE column_name = $1`,
+      [columnName]
+    );
+    if (dup.rows.length > 0) {
+      throw new Error(`A custom field "${displayName}" already exists`);
+    }
+
+    // ALTER TABLE to add the column
+    await client.query(
+      `ALTER TABLE ${schema}.projects ADD COLUMN IF NOT EXISTS ${columnName} ${pgType}`
+    );
+
+    // Register in ma_custom_fields
+    const result = await client.query(
+      `INSERT INTO ${schema}.ma_custom_fields (column_name, display_name, data_type)
+       VALUES ($1, $2, $3) RETURNING *`,
+      [columnName, displayName, dataType]
+    );
+
+    await client.query('COMMIT');
+    console.log(`Added custom field: ${columnName} (${pgType})`);
+    return result.rows[0];
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+};
+
+const removeCustomField = async (id) => {
+  const schema = process.env.DB_SCHEMA || 'pipeline_dashboard';
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    // Look up the field
+    const lookup = await client.query(
+      `SELECT column_name, display_name FROM ${schema}.ma_custom_fields WHERE id = $1`,
+      [id]
+    );
+    if (lookup.rows.length === 0) {
+      throw new Error('Custom field not found');
+    }
+    const { column_name, display_name } = lookup.rows[0];
+
+    // DROP the column from projects table
+    await client.query(
+      `ALTER TABLE ${schema}.projects DROP COLUMN IF EXISTS ${column_name}`
+    );
+
+    // Remove from registry
+    await client.query(
+      `DELETE FROM ${schema}.ma_custom_fields WHERE id = $1`,
+      [id]
+    );
+
+    await client.query('COMMIT');
+    console.log(`Removed custom field: ${column_name}`);
+    return { id, column_name, display_name };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
   }
 };
 
@@ -1205,8 +1308,12 @@ module.exports = {
   getDashboardStats,
   getFilterOptions,
   getProjectsCount,
+  getMaStats,
   upsertProject,
   bulkUpsertProjects,
+  getCustomFields,
+  addCustomField,
+  removeCustomField,
 
   testConnection: database.testConnection.bind(database)
 };

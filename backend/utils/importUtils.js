@@ -65,6 +65,23 @@ const EXCEL_TO_DB_MAP = {
   'M&A Tier': 'ma_tier',
   'POI Voltage (kV)': 'poi_voltage_kv',
 
+  // M&A Valuation Columns
+  'Investment (USD)': 'ma_investment',
+  'Investment': 'ma_investment',
+  'Unlevered IRR': 'ma_irr',
+  'IRR': 'ma_irr',
+  'MOIC': 'ma_moic',
+  'Payback Period': 'ma_payback_period',
+  'NTM EBITDA': 'ma_ntm_ebitda',
+  'EV/EBITDA Multiple': 'ma_ev_ebitda_multiple',
+  'Avg 5yr EBITDA': 'ma_avg_5yr_ebitda',
+  'Avg 5yr Multiple': 'ma_avg_5yr_multiple',
+  'Projected Useful Life': 'ma_projected_useful_life',
+  'Contracted/Hedged Capacity': 'ma_contracted_hedged_capacity',
+  'Capacity Market Structure': 'ma_capacity_market_structure',
+  'Capacity Contract Term': 'ma_capacity_contract_term',
+  'Capacity Contract Price': 'ma_capacity_contract_price',
+
   // Legacy column names (from old format)
   'Legacy Nameplate Capacity (MW)': 'legacy_nameplate_capacity_mw',
   '2024 Capacity Factor': 'capacity_factor_2024',

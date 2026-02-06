@@ -19,6 +19,7 @@ const getProjects = async (req, res) => {
       status: req.query.status,
       tech: req.query.tech,
       project_type: req.query.project_type,
+      search: req.query.search,
       limit: Math.min(parseInt(req.query.limit) || 100, 500),
       offset: parseInt(req.query.offset) || 0,
       sort_by: req.query.sort_by || 'project_name',
@@ -301,6 +302,27 @@ const getFilterOptions = async (req, res) => {
 };
 
 /**
+ * GET /api/projects/ma-stats - Get M&A pipeline statistics
+ */
+const getMaStats = async (req, res) => {
+  try {
+    const stats = await projectModel.getMaStats();
+
+    res.status(200).json({
+      success: true,
+      data: stats
+    });
+  } catch (error) {
+    console.error('Error in getMaStats controller:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to retrieve M&A statistics',
+      message: error.message
+    });
+  }
+};
+
+/**
  * PATCH /api/projects/:id - Partial update (same as PUT for now)
  */
 const patchProject = async (req, res) => {
@@ -440,6 +462,56 @@ const importProjects = async (req, res) => {
   }
 };
 
+/**
+ * GET /api/projects/ma-custom-fields - List custom fields
+ */
+const getCustomFields = async (req, res) => {
+  try {
+    const fields = await projectModel.getCustomFields();
+    res.status(200).json({ success: true, data: fields });
+  } catch (error) {
+    console.error('Error in getCustomFields:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+/**
+ * POST /api/projects/ma-custom-fields - Add a new custom field
+ * Body: { display_name: string, data_type: 'text'|'number'|'date' }
+ */
+const addCustomField = async (req, res) => {
+  try {
+    const { display_name, data_type } = req.body;
+    if (!display_name || !display_name.trim()) {
+      return res.status(400).json({ success: false, error: 'display_name is required' });
+    }
+    const field = await projectModel.addCustomField(display_name.trim(), data_type || 'text');
+    res.status(201).json({ success: true, data: field });
+  } catch (error) {
+    console.error('Error in addCustomField:', error);
+    const status = error.message.includes('already exists') ? 409 : 500;
+    res.status(status).json({ success: false, error: error.message });
+  }
+};
+
+/**
+ * DELETE /api/projects/ma-custom-fields/:id - Remove a custom field
+ */
+const removeCustomField = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!id || isNaN(parseInt(id))) {
+      return res.status(400).json({ success: false, error: 'Invalid field ID' });
+    }
+    const removed = await projectModel.removeCustomField(parseInt(id));
+    res.status(200).json({ success: true, data: removed });
+  } catch (error) {
+    console.error('Error in removeCustomField:', error);
+    const status = error.message === 'Custom field not found' ? 404 : 500;
+    res.status(status).json({ success: false, error: error.message });
+  }
+};
+
 // Export all controller functions
 module.exports = {
   getProjects,
@@ -450,5 +522,9 @@ module.exports = {
   patchProject,
   getDashboardStats,
   getFilterOptions,
-  importProjects
+  getMaStats,
+  importProjects,
+  getCustomFields,
+  addCustomField,
+  removeCustomField
 };

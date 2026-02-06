@@ -46,6 +46,25 @@ html, body, #root {
   overflow-x: hidden;
 }
 
+/* ===== APP LAYOUT (Sidebar + Main Content) ===== */
+.app-layout {
+  display: flex;
+  min-height: 100vh;
+  background: #020617;
+}
+
+.app-main-content {
+  flex: 1;
+  margin-left: 256px;
+  transition: margin-left 0.3s ease;
+  overflow-y: auto;
+  min-height: 100vh;
+}
+
+.app-main-content.sidebar-collapsed {
+  margin-left: 64px;
+}
+
 /* ===== DASHBOARD CONTAINER ===== */
 .dashboard-root {
   width: 100%;

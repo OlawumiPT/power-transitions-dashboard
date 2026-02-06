@@ -224,6 +224,91 @@ export const projectService = {
     }
   },
 
+  async fetchMaStats(token) {
+    const response = await fetch(`${API_BASE_URL}/api/projects/ma-stats`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch M&A stats: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.data || data;
+  },
+
+  async fetchMaProjects(params, token) {
+    const queryObj = {
+      project_type: 'M&A',
+      limit: params.limit || 8,
+      offset: params.offset || 0,
+      sort_by: params.sort_by || 'project_name',
+      sort_order: params.sort_order || 'ASC'
+    };
+    if (params.search) queryObj.search = params.search;
+    const query = new URLSearchParams(queryObj);
+
+    const response = await fetch(`${API_BASE_URL}/api/projects?${query}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch M&A projects: ${response.status}`);
+    }
+
+    return response.json();
+  },
+
+  async fetchCustomFields(token) {
+    const response = await fetch(`${API_BASE_URL}/api/projects/ma-custom-fields`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json'
+      }
+    });
+    if (!response.ok) return [];
+    const data = await response.json();
+    return data.data || [];
+  },
+
+  async addCustomField(displayName, dataType, token) {
+    const response = await fetch(`${API_BASE_URL}/api/projects/ma-custom-fields`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ display_name: displayName, data_type: dataType })
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to add custom field');
+    }
+    const data = await response.json();
+    return data.data;
+  },
+
+  async removeCustomField(fieldId, token) {
+    const response = await fetch(`${API_BASE_URL}/api/projects/ma-custom-fields/${fieldId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to remove custom field');
+    }
+    return response.json();
+  },
+
   async checkAndAddRedevSupport(name, token) {
     if (!name || name.trim() === '') return;
 
