@@ -25,4 +25,4 @@ const KPISection = ({ kpiRow1, kpiRow2 }) => {
   );
 };
 
-export default KPISection;
+export default React.memo(KPISection);

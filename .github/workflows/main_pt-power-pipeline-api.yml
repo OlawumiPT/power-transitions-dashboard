@@ -20,6 +20,14 @@ jobs:
 
       - name: Install backend dependencies
         working-directory: backend
+        run: npm ci
+
+      - name: Run backend tests
+        working-directory: backend
+        run: npm test
+
+      - name: Reinstall without dev deps for deployment
+        working-directory: backend
         run: npm ci --omit=dev
 
       - name: Zip backend for deployment (includes node_modules)

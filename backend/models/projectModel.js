@@ -3,6 +3,23 @@ const pool = database.getPool();
 const { calculateAllScores } = require('../utils/scoreCalculations');
 const { calculateMarketScore, calculateCODScore, calculateCapacityFactorScore, calculateTransactabilityScore, calculateStatus } = require('../utils/importUtils');
 
+// Simple in-memory cache with TTL
+const cache = new Map();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+function getCached(key) {
+  const entry = cache.get(key);
+  if (entry && Date.now() - entry.timestamp < CACHE_TTL) {
+    return entry.data;
+  }
+  cache.delete(key);
+  return null;
+}
+
+function setCache(key, data) {
+  cache.set(key, { data, timestamp: Date.now() });
+}
+
 // ========== PROJECT DATA OPERATIONS ==========
 
 const getAllProjects = async (filters = {}) => {
@@ -837,9 +854,12 @@ const getDashboardStats = async () => {
 };
 
 const getFilterOptions = async () => {
+  const cached = getCached('filterOptions');
+  if (cached) return cached;
+
   try {
     const schema = process.env.DB_SCHEMA || 'pipeline_dashboard';
-    
+
     const queries = {
       isos: {
         text: `SELECT DISTINCT iso as value FROM ${schema}.projects WHERE is_active = true AND iso IS NOT NULL AND iso != '' ORDER BY iso`,
@@ -943,6 +963,7 @@ const getFilterOptions = async () => {
     }
     
     console.log('🔍 Filter options retrieved successfully');
+    setCache('filterOptions', results);
     return results;
   } catch (error) {
     console.error('❌ Error in getFilterOptions:', error);

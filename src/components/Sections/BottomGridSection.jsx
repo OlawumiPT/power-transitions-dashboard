@@ -368,4 +368,4 @@ BottomGridSection.defaultProps = {
   selectedProjectType: 'All'
 };
 
-export default BottomGridSection;
+export default React.memo(BottomGridSection);

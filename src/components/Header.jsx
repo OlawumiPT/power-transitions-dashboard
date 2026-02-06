@@ -189,6 +189,7 @@ const Header = ({
           </div>
 
           <div className="action-buttons-primary">
+            {(user?.role === 'admin' || user?.role === 'operator') && (
             <button
               className="action-btn action-btn-cyan"
               onClick={() => setShowExpertScores(true)}
@@ -198,6 +199,7 @@ const Header = ({
               </svg>
               <span className="action-btn-text">Expert Analysis</span>
             </button>
+            )}
 
             <button
               className="action-btn action-btn-add"

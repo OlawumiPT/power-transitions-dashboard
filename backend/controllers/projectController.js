@@ -19,8 +19,8 @@ const getProjects = async (req, res) => {
       status: req.query.status,
       tech: req.query.tech,
       project_type: req.query.project_type,
-      limit: req.query.limit || 1000,
-      offset: req.query.offset || 0,
+      limit: Math.min(parseInt(req.query.limit) || 100, 500),
+      offset: parseInt(req.query.offset) || 0,
       sort_by: req.query.sort_by || 'project_name',
       sort_order: req.query.sort_order || 'ASC'
     };

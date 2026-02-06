@@ -170,4 +170,4 @@ const MiddleGridSection = ({ isoData, techData, redevelopmentTypes, ISO_COLORS, 
   );
 };
 
-export default MiddleGridSection;
+export default React.memo(MiddleGridSection);

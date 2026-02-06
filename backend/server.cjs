@@ -2,6 +2,7 @@
 require("dotenv").config();
 
 const express = require('express');
+const compression = require('compression');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
@@ -27,7 +28,11 @@ pool.on('connect', (client) => {
 const DEBUG_MODE = process.env.DEBUG_MODE === 'true';
 
 // Email service constants
-const JWT_SECRET = process.env.JWT_SECRET || 'your-jwt-secret-change-in-production';
+if (!process.env.JWT_SECRET && process.env.NODE_ENV === 'production') {
+  console.error('FATAL: JWT_SECRET environment variable is required in production');
+  process.exit(1);
+}
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-only-jwt-secret';
 const SALT_ROUNDS = 12;
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'ababalola@power-transitions.com';
 const FRONTEND_URL = process.env.FRONTEND_URL || 'https://platform.power-transitions.com';
@@ -111,7 +116,7 @@ class EmailService {
       requireTLS: true,
       auth: {
         user: 'noreply@power-transitions.com',
-        pass: process.env.EMAIL_PASSWORD || 'N*273989079320ul'
+        pass: process.env.EMAIL_PASSWORD
       },
       tls: { rejectUnauthorized: false }
     };
@@ -263,23 +268,30 @@ if (DEBUG_MODE) {
   app.use((req, res, next) => {
     console.log(`📨 ${req.method} ${req.path}`);
     if (req.method === 'POST' && req.path === '/api/auth/register') {
-      console.log('📝 Request body:', JSON.stringify(req.body, null, 2));
+      const { password, ...safeBody } = req.body || {};
+      console.log('📝 Request body (sanitized):', JSON.stringify(safeBody, null, 2));
     }
     next();
   });
 }
 app.use(helmet());
-app.set('trust proxy', 1); 
+app.use(compression());
+app.set('trust proxy', 1);
 
 const allowedOrigins = [
   'https://platform.power-transitions.com',
   'https://pt-power-pipeline-dashboard.azurestaticapps.net',
   'https://lively-water-022a59110.6.azurestaticapps.net',
-  'http://localhost:5173',
-  'http://localhost:3000',
-  'http://localhost:5174',
-  'http://localhost:5175'
 ];
+
+if (process.env.NODE_ENV !== 'production') {
+  allowedOrigins.push(
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'http://localhost:5174',
+    'http://localhost:5175'
+  );
+}
 
 if (process.env.FRONTEND_URL) {
   allowedOrigins.push(process.env.FRONTEND_URL);
@@ -316,6 +328,22 @@ const limiter = rateLimit({
   validate: { trustProxy: false }
 });
 app.use('/api/', limiter);
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: {
+    success: false,
+    error: 'Too many authentication attempts. Please try again later.'
+  },
+  keyGenerator: (req) => {
+    const forwarded = req.headers['x-forwarded-for'];
+    const ip = forwarded ? forwarded.split(',')[0].trim() : req.ip;
+    return ip.split(':')[0];
+  },
+  validate: { trustProxy: false }
+});
+app.use('/api/auth/', authLimiter);
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
@@ -365,15 +393,24 @@ const isAdmin = (req, res, next) => {
 };
 
 // ========== HEALTH CHECK ==========
-app.get('/health', (req, res) => {
-  res.json({
-    success: true,
-    status: 'OK',
+app.get('/health', async (req, res) => {
+  let dbStatus = 'unknown';
+  try {
+    await pool.query('SELECT 1');
+    dbStatus = 'connected';
+  } catch {
+    dbStatus = 'disconnected';
+  }
+
+  const healthy = dbStatus === 'connected';
+  res.status(healthy ? 200 : 503).json({
+    success: healthy,
+    status: healthy ? 'OK' : 'DEGRADED',
     timestamp: new Date().toISOString(),
     service: 'Power Pipeline API',
     version: '1.0.0',
     environment: process.env.NODE_ENV,
-    database: 'PostgreSQL',
+    database: dbStatus,
     auth: 'JWT Authentication',
     email_service: emailServiceReady ? `Active (${emailService.mode})` : 'Inactive'
   });
@@ -394,38 +431,40 @@ app.get('/api/test', (req, res) => {
 // ============================================
 // DEBUG ENDPOINTS (ADDED - CRITICAL FOR DEBUGGING)
 // ============================================
-app.get('/api/debug/db-connection', async (req, res) => {
-  try {
-    const envVars = {
-      DB_HOST: process.env.DB_HOST,
-      DB_PORT: process.env.DB_PORT,
-      DB_NAME: process.env.DB_NAME,
-      DB_USER: process.env.DB_USER,
-      NODE_ENV: process.env.NODE_ENV,
-      DEBUG_MODE: process.env.DEBUG_MODE
-    };
-
-    const client = await pool.connect();
+if (process.env.NODE_ENV !== 'production') {
+  app.get('/api/debug/db-connection', async (req, res) => {
     try {
-      const dbInfo = await client.query(`
-        SELECT
-          current_database() as current_db,
-          current_schema() as current_schema,
-          version() as pg_version
-      `);
+      const envVars = {
+        DB_HOST: process.env.DB_HOST,
+        DB_PORT: process.env.DB_PORT,
+        DB_NAME: process.env.DB_NAME,
+        DB_USER: process.env.DB_USER,
+        NODE_ENV: process.env.NODE_ENV,
+        DEBUG_MODE: process.env.DEBUG_MODE
+      };
 
-      res.json({
-        success: true,
-        environment_variables: envVars,
-        database_info: dbInfo.rows[0]
-      });
-    } finally {
-      client.release();
+      const client = await pool.connect();
+      try {
+        const dbInfo = await client.query(`
+          SELECT
+            current_database() as current_db,
+            current_schema() as current_schema,
+            version() as pg_version
+        `);
+
+        res.json({
+          success: true,
+          environment_variables: envVars,
+          database_info: dbInfo.rows[0]
+        });
+      } finally {
+        client.release();
+      }
+    } catch (error) {
+      res.json({ success: false, error: error.message });
     }
-  } catch (error) {
-    res.json({ success: false, error: error.message });
-  }
-});
+  });
+}
 
 app.post('/api/echo', (req, res) => {
   if (DEBUG_MODE) {
@@ -1343,7 +1382,7 @@ app.get('/api/admin/users', authenticateToken, isAdmin, async (req, res) => {
     let query = `
       SELECT id, username, email, full_name, role, status,
              approved_at, last_login, login_count, created_at,
-             (SELECT COUNT(*) FROM ${process.env.DB_SCHEMA || 'pipeline_dashboard'}.users) as total_count
+             COUNT(*) OVER() as total_count
       FROM ${process.env.DB_SCHEMA || 'pipeline_dashboard'}.users
       WHERE 1=1
     `;
@@ -1541,7 +1580,7 @@ app.use((req, res) => {
 });
 
 // ========== START SERVER ==========
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log('='.repeat(70));
   console.log('🚀 POWER PIPELINE API SERVER STARTED SUCCESSFULLY');
   console.log('='.repeat(70));
@@ -1582,6 +1621,26 @@ app.listen(PORT, () => {
   console.log('✅ Ready to accept requests!');
   console.log('='.repeat(70));
 });
+
+// Graceful shutdown
+const gracefulShutdown = (signal) => {
+  console.log(`\n${signal} received. Shutting down gracefully...`);
+  server.close(() => {
+    console.log('HTTP server closed');
+    pool.end(() => {
+      console.log('Database pool closed');
+      process.exit(0);
+    });
+  });
+  // Force close after 10s
+  setTimeout(() => {
+    console.error('Forced shutdown after timeout');
+    process.exit(1);
+  }, 10000);
+};
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 // Handle uncaught exceptions
 process.on('uncaughtException', (err) => {

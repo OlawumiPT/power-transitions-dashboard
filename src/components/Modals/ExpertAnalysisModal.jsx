@@ -846,7 +846,7 @@ const ExpertAnalysisModal = ({
             </thead>
             <tbody>
               {data.map((item, index) => (
-                <tr key={`transmission-${item.id || index}`} style={{ borderBottom: '1px solid #4a5568' }}>
+                <tr key={`transmission-${item.id}`} style={{ borderBottom: '1px solid #4a5568' }}>
                   <td style={{ padding: '12px' }}>
                     <input
                       type="text"
@@ -1011,8 +1011,8 @@ const ExpertAnalysisModal = ({
               </tr>
             </thead>
             <tbody>
-              {data.map((item, index) => (
-                <tr key={index} style={{ borderBottom: '1px solid #4a5568' }}>
+              {data.map((item) => (
+                <tr key={item.id} style={{ borderBottom: '1px solid #4a5568' }}>
                   <td style={{ padding: '12px', color: '#e2e8f0' }}>{item.poiVoltage || ''}</td>
                   <td style={{ padding: '12px', color: '#e2e8f0' }}>{parseFloat(item.excessInjectionCapacity || 0).toFixed(1)} MW</td>
                   <td style={{ padding: '12px', color: '#e2e8f0' }}>{parseFloat(item.excessWithdrawalCapacity || 0).toFixed(1)} MW</td>

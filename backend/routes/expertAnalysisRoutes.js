@@ -9,18 +9,7 @@ const {
   saveTransmissionInterconnection
 } = require('../controllers/expertAnalysisController');
 
-// Check if auth middleware exists
-let protect;
-try {
-  const authMiddleware = require('../middleware/authMiddleware');
-  protect = authMiddleware.protect || authMiddleware;
-} catch (error) {
-  console.log('⚠️ No auth middleware found, using dummy middleware');
-  protect = (req, res, next) => {
-    console.log('🔓 Bypassing auth for expert analysis routes');
-    next();
-  };
-}
+const { authenticateToken: protect } = require('../middleware/auth');
 
 // Expert Analysis Routes
 router.get('/expert-analysis', protect, getExpertAnalysis);

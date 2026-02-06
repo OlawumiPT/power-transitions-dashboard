@@ -1,17 +1,18 @@
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, lazy, Suspense } from 'react';
 import './Dashboard.css';
 import Header from './components/Header';
 import KPISection from './components/Sections/KPISection';
 import MiddleGridSection from './components/Sections/MiddleGridSection';
 import BottomGridSection from './components/Sections/BottomGridSection';
-import AddSiteModal from './components/Modals/AddSiteModal';
-import EditSiteModal from './components/Modals/EditSiteModal'; 
-import ProjectDetailModal from './components/Modals/ProjectDetailModal';
 import ScoringPanel from './components/Modals/ScoringPanel';
 import ExpertScoresPanel from './components/Modals/ExpertScoresPanel';
-import ExpertAnalysisModal from './components/Modals/ExpertAnalysisModal';
-import ExportModal from './components/Modals/ExportModal'; 
+import ExportModal from './components/Modals/ExportModal';
 import UploadModal from './components/Modals/UploadModal';
+
+const AddSiteModal = lazy(() => import('./components/Modals/AddSiteModal'));
+const EditSiteModal = lazy(() => import('./components/Modals/EditSiteModal'));
+const ProjectDetailModal = lazy(() => import('./components/Modals/ProjectDetailModal'));
+const ExpertAnalysisModal = lazy(() => import('./components/Modals/ExpertAnalysisModal'));
 import { ActivityLogProvider } from './contexts/ActivityLogContext';
 import ActivityLogPanel from './components/ActivityLog/ActivityLogPanel';
 import { calculateAllData, filterData, findColumnName } from './utils/calculations';
@@ -1149,17 +1150,12 @@ const handleUpdateProject = async (updatedData) => {
     const updatedProject = await response.json();
     console.log('✅ Update response:', updatedProject);
     
-    // 🔥 CRITICAL FIX: Show immediate success alert
-    window.alert(`✅ Project "${updatedProject.project_name || updatedData["Project Name"]}" has been successfully updated!`);
-    
     setShowEditModal(false);
     setEditingProject(null);
-    
-    // 🔥 CRITICAL FIX: RE-FETCH ALL DATA FROM BACKEND
-    // This ensures the table updates automatically without browser refresh
+
+    // Re-fetch all data from backend
     await fetchData();
-    
-    // Show success notification
+
     setNotification({
       show: true,
       message: `Project "${updatedProject.project_name || updatedData["Project Name"]}" updated successfully!`,
@@ -1168,9 +1164,6 @@ const handleUpdateProject = async (updatedData) => {
     
   } catch (error) {
     console.error('❌ Update project error:', error);
-    
-    // Show error alert
-    window.alert(`❌ Failed to update project: ${error.message}`);
     
     setNotification({
       show: true,
@@ -2079,9 +2072,9 @@ const handleUpdateProject = async (updatedData) => {
       selectedTransmissionVoltage, selectedHasExcessCapacity, 
       selectedProjectType, activeTechFilter, activeIsoFilter, activeRedevFilter, activeCounterpartyFilter, findColumnName
     );
-  }, [allData, selectedIso, selectedProcess, selectedOwner, selectedTransmissionVoltage, 
-      selectedHasExcessCapacity, selectedProjectType, activeTechFilter, 
-      activeIsoFilter, activeRedevFilter, activeCounterpartyFilter, projectTransmissionData]);
+  }, [allData, selectedIso, selectedProcess, selectedOwner, selectedTransmissionVoltage,
+      selectedHasExcessCapacity, selectedProjectType, activeTechFilter,
+      activeIsoFilter, activeRedevFilter, activeCounterpartyFilter]);
 
   // FIXED: Calculate data only when filteredData changes
   useEffect(() => {
@@ -2411,6 +2404,7 @@ const handleUpdateProject = async (updatedData) => {
         selectedProjectType={selectedProjectType}
       />
         {/* Modals */}
+        <Suspense fallback={null}>
         {showAddSiteModal && (
           <AddSiteModal
             showAddSiteModal={showAddSiteModal}
@@ -2427,7 +2421,7 @@ const handleUpdateProject = async (updatedData) => {
             setValidationErrors={setValidationErrors}
           />
         )}
-        
+
         {/* Edit Modal */}
         {showEditModal && editingProject && (
           <EditSiteModal
@@ -2443,7 +2437,7 @@ const handleUpdateProject = async (updatedData) => {
             setValidationErrors={setValidationErrors}
           />
         )}
-        
+
         {showProjectDetail && (
           <ProjectDetailModal
             selectedProject={selectedProject}
@@ -2520,6 +2514,7 @@ const handleUpdateProject = async (updatedData) => {
     }}
   />
 )}
+        </Suspense>
       </div>
     </ActivityLogProvider>
   );

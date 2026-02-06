@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const projectController = require('../controllers/projectController');
-// Validation temporarily disabled - uncomment to re-enable
 // const { validateProjectCreate, validateProjectUpdate } = require('../middleware/projectValidation');
 
 // Configure multer for file upload (memory storage for Excel processing)

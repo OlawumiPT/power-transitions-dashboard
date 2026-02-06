@@ -382,8 +382,8 @@ const ProjectDetailModal = ({ selectedProject, closeProjectDetail, handleEditPro
                 {tooltipContent.fullCriteria.length > 0 && (
                   <div className="tooltip-section criteria-section">
                     <div className="tooltip-subtitle">Scoring Criteria</div>
-                    {tooltipContent.fullCriteria.map((crit, idx) => (
-                      <div key={idx} className="criteria-row">
+                    {tooltipContent.fullCriteria.map((crit) => (
+                      <div key={`${crit.score}-${crit.description}`} className="criteria-row">
                         <span className="criteria-score">{crit.score} pt{crit.score !== 1 ? 's' : ''}:</span>
                         <span className="criteria-desc">{crit.description}</span>
                       </div>
@@ -528,8 +528,8 @@ const ProjectDetailModal = ({ selectedProject, closeProjectDetail, handleEditPro
                   <h3 className="weight-header">Weight</h3>
                 </div>
                 <div className="expert-scores-grid">
-                  {thermalEntries.map((item, index) => (
-                    <div key={index} className="expert-score-row">
+                  {thermalEntries.map((item) => (
+                    <div key={item.label} className="expert-score-row">
                       <div className="expert-score-left">
                         <span className="expert-score-label">
                           {item.label}:
@@ -570,8 +570,8 @@ const ProjectDetailModal = ({ selectedProject, closeProjectDetail, handleEditPro
                   <h3 className="weight-header">Weight</h3>
                 </div>
                 <div className="expert-scores-grid">
-                  {redevEntries.map((item, index) => (
-                    <div key={index} className="expert-score-row">
+                  {redevEntries.map((item) => (
+                    <div key={item.label} className="expert-score-row">
                       <div className="expert-score-left">
                         <span className="expert-score-label">
                           {item.label}:

@@ -1,8 +1,10 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import './Sidebar.css';
 
 const Sidebar = ({ collapsed, toggleSidebar }) => {
+  const { user } = useAuth();
   const navItems = [
     { path: '/dashboard', icon: '📊', label: 'Dashboard' },
     { path: '/m-and-a', icon: '💰', label: 'M&A' },
@@ -36,7 +38,7 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       {!collapsed && (
         <div className="sidebar-footer">
           <div className="user-info">
-            <span>👤 Admin User</span>
+            <span>👤 {user?.full_name || user?.username || 'User'}</span>
           </div>
         </div>
       )}
